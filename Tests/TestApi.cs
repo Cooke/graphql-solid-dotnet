@@ -7,22 +7,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Tests
 {
-    public class Schema
-    {
-        public Query Query
-        {
-            get
-            {
-                var dbContextOptions = new DbContextOptionsBuilder<TestContext>();
-                dbContextOptions.UseInMemoryDatabase("test");
-                var testContext = new TestContext(dbContextOptions.Options);
-                testContext.Users.Add(new ApplicationUser {Username = "henrik"});
-
-                return new Query(testContext);
-            }
-        }
-    }
-
     public class Query
     {
         private readonly TestContext _context;
@@ -34,7 +18,7 @@ namespace Tests
 
         //public Task<User[]> UsersWithRole(string role) => _context.Users.Where(x => x.Roles.Contains(role)).Select(x => new User(x)).ToArrayAsync();
 
-        public Task<User[]> Users => _context.Users.Select(x => new User(x)).ToArrayAsync();
+        public Task<User[]> Users => _context.Users.ToArrayAsync().ContinueWith(t => t.Result.Select(x => new User(x)).ToArray());
 
         //public async Task<User> User(int id) => new User(await _context.Users.FindAsync(id));
 
