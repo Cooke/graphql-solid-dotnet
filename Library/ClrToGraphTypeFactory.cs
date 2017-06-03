@@ -8,13 +8,14 @@ namespace Tests
 {
     public class ClrToGraphTypeFactory
     {
-        internal static SchemaGraphType CreateSchema(Type clrType)
-        {
-            var fields = CreateFields(clrType);
-            return new SchemaGraphType(clrType, fields);
+        private readonly SchemaBuilderOptions _options;
 
+        public ClrToGraphTypeFactory(SchemaBuilderOptions options)
+        {
+            _options = options;
         }
-        public static GraphType CreateType(Type clrType)
+
+        public GraphType CreateType(Type clrType)
         {
             clrType = TypeHelper.UnwrapTask(clrType);
 
@@ -35,14 +36,14 @@ namespace Tests
             }
         }
 
-        private static Dictionary<string, GraphFieldInfo> CreateFields(Type clrType)
+        private Dictionary<string, GraphFieldInfo> CreateFields(Type clrType)
         {
             var memberInfos = clrType.GetTypeInfo().DeclaredProperties.Where(x => x.GetMethod.IsPublic);
             var fields = memberInfos.Select(CreateFieldInfo).ToDictionary(x => x.Name);
             return fields;
         }
 
-        private static GraphFieldInfo CreateFieldInfo(MemberInfo memberInfo)
+        private GraphFieldInfo CreateFieldInfo(MemberInfo memberInfo)
         {
             var propertyInfo = memberInfo as PropertyInfo;
             if (propertyInfo != null)
@@ -64,7 +65,7 @@ namespace Tests
                     return result;
                 };
 
-                return new GraphFieldInfo(propertyInfo.Name, type, resolver);
+                return new GraphFieldInfo(_options.NamingStrategy.ResolveFieldName(propertyInfo), type, resolver);
             }
 
             throw new NotSupportedException();

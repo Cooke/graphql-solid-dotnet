@@ -2,15 +2,13 @@ using System;
 
 namespace Tests
 {
-    public class Schema<TQuery>
+    public class Schema
     {
-        private readonly Func<Type, object> _resolver;
-
-        public Schema(Func<Type, object> resolver)
+        public Schema(ObjectGraphType query)
         {
-            _resolver = resolver;
+            Query = query;
         }
 
-        public TQuery Query => (TQuery)_resolver(typeof(TQuery));
+        public ObjectGraphType Query { get; }
     }
 }

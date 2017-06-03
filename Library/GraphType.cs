@@ -10,5 +10,7 @@ namespace Tests
         {
             _clrType = clrType;
         }
+
+        internal Type ClrType => _clrType;
     }
 }

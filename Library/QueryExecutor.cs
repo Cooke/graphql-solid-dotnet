@@ -8,16 +8,30 @@ using Newtonsoft.Json.Linq;
 
 namespace Tests
 {
-    public class GraphqlExecutor
+    public class QueryExecutorOptions
     {
-        public async Task<ExecutionResult> ExecuteAsync(string query, ObjectGraphType schemaType, object schemaInstance)
+        public Func<Type, object> Resolver = t => Activator.CreateInstance(t);
+    }
+
+    public class QueryExecutor
+    {
+        private readonly Schema _schema;
+        private readonly QueryExecutorOptions _options;
+
+        public QueryExecutor(Schema schema, QueryExecutorOptions options)
+        {
+            _schema = schema;
+            _options = options;
+        }
+
+        public async Task<ExecutionResult> ExecuteAsync(string query)
         {
             var lexer = new Lexer();
             var parser = new Parser(lexer);
             var ast = parser.Parse(new Source(query));
-            
-            var initialObjectType = schemaType.GetFieldType("Query") as ObjectGraphType;
-            var initialObjectValue = await schemaType.ResolveAsync(schemaInstance, "Query");
+
+            var initialObjectType = _schema.Query;
+            var initialObjectValue = _options.Resolver(_schema.Query.ClrType);
 
             if (initialObjectType == null)
             {
