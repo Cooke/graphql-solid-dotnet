@@ -25,50 +25,106 @@ namespace Tests
                     .First(x => x.IsConstructedGenericType && x.GetGenericTypeDefinition() == typeof(IEnumerable<>));
                 return new ListGraphType(clrType, CreateType(itemTYpe.GenericTypeArguments.Single()));
             }
-            else if (clrType.GetTypeInfo().IsPrimitive || clrType == typeof(string))
+            else if (clrType == typeof(string))
             {
-                return new PrimitiveGraphType(clrType);
+                return new StringGraphType(clrType);
             }
-            else
+            else if (clrType == typeof(int))
+            {
+                return new IntGraphType(clrType);
+            }
+            else if (clrType.GetTypeInfo().IsClass)
             {
                 var fields = CreateFields(clrType);
                 return new ObjectGraphType(clrType, fields);
+            }
+            else
+            {
+                throw new NotSupportedException($"The given CLR type '{clrType}' is currently not supported.");
             }
         }
 
         private Dictionary<string, GraphFieldInfo> CreateFields(Type clrType)
         {
-            var memberInfos = clrType.GetTypeInfo().DeclaredProperties.Where(x => x.GetMethod.IsPublic);
-            var fields = memberInfos.Select(CreateFieldInfo).ToDictionary(x => x.Name);
-            return fields;
+            var propertyInfos = clrType.GetTypeInfo().DeclaredProperties.Where(x => x.GetMethod.IsPublic && !x.GetMethod.IsStatic);
+            var fields = propertyInfos.Select(CreateFieldInfo);
+
+            var methodInfos = clrType.GetTypeInfo().DeclaredMethods.Where(x => x.IsPublic && !x.IsSpecialName && !x.IsStatic);
+            fields = fields.Concat(methodInfos.Select(CreateFieldInfo));
+            return fields.ToDictionary(x => x.Name);
         }
 
-        private GraphFieldInfo CreateFieldInfo(MemberInfo memberInfo)
+        private GraphFieldInfo CreateFieldInfo(PropertyInfo propertyInfo)
         {
-            var propertyInfo = memberInfo as PropertyInfo;
-            if (propertyInfo != null)
+            var type = CreateType(propertyInfo.PropertyType);
+
+            Func<object, IDictionary<string, object>, Task<object>> resolver = async (x, args) =>
             {
-                var type = CreateType(propertyInfo.PropertyType);
+                // TODO replace with a compiled expression that gets the property value
+                var result = propertyInfo.GetValue(x);
+                return await UnwrapResult(result);
+            };
 
-                Func<object, Task<object>> resolver = async x =>
-                {
-                    var result = propertyInfo.GetValue(x);
-                    var task = result as Task;
-                    if (task != null)
-                    {
-                        await task;
-                        // TODO investigate if using expressions directly would be more performant
-                        dynamic dynamicTask = task;
-                        return dynamicTask.Result;
-                    }
+            return new GraphFieldInfo(_options.NamingStrategy.ResolveFieldName(propertyInfo), type, resolver, new FieldArgumentInfo[0]);
+        }
 
-                    return result;
-                };
+        private GraphFieldInfo CreateFieldInfo(MethodInfo methodInfo)
+        {
+            var type = CreateType(methodInfo.ReturnType);
+            var arguments = methodInfo.GetParameters().Select(CreateFieldArgument).ToArray();
 
-                return new GraphFieldInfo(_options.NamingStrategy.ResolveFieldName(propertyInfo), type, resolver);
+            Func<object, IDictionary<string, object>, Task<object>> resolver = async (obj, args) =>
+            {
+                // NOTE arguments have already been coerced outside of the resolve function
+                var paramteters = arguments.Select(arg => args.ContainsKey(arg.Name) ? args[arg.Name] : null).ToArray();
+
+                // TODO replace with a compiled expression that invokes the method
+                var result = methodInfo.Invoke(obj, paramteters);
+                return await UnwrapResult(result);
+            };
+
+            return new GraphFieldInfo(_options.NamingStrategy.ResolveFieldName(methodInfo), type, resolver, arguments);
+        }
+
+        private FieldArgumentInfo CreateFieldArgument(ParameterInfo arg)
+        {
+            var argType = CreateType(arg.ParameterType);
+            
+            // TODO use a naming strategy 
+            return new FieldArgumentInfo(argType, arg.Name, arg.HasDefaultValue, arg.DefaultValue);
+        }
+
+        private static async Task<object> UnwrapResult(object result)
+        {
+            var task = result as Task;
+            if (task != null)
+            {
+                await task;
+                // TODO investigate if using expressions directly would be more performant
+                dynamic dynamicTask = task;
+                return dynamicTask.Result;
             }
 
-            throw new NotSupportedException();
+            return result;
+        }
+    }
+
+    public class FieldArgumentInfo
+    {
+        public string Name { get; }
+
+        public bool HasDefaultValue { get; }
+
+        public object DefaultValue { get; }
+
+        public GraphType Type { get; }
+
+        public FieldArgumentInfo(GraphType type, string name, bool hasDefaultValue, object defaultValue)
+        {
+            Type = type;
+            Name = name;
+            HasDefaultValue = hasDefaultValue;
+            DefaultValue = defaultValue;
         }
     }
 }

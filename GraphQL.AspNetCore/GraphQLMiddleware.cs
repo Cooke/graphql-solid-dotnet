@@ -1,0 +1,42 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
+using Newtonsoft.Json;
+
+namespace Tests
+{
+    public class GraphQLMiddleware
+    {
+        private readonly RequestDelegate _next;
+        private readonly QueryExecutor _queryExecutor;
+
+        public GraphQLMiddleware(RequestDelegate next, Schema schema, IServiceProvider sp)
+        {
+            _next = next;
+            _queryExecutor = new QueryExecutor(schema, new QueryExecutorOptions {Resolver = sp.GetService });
+        }
+
+        public async Task Invoke(HttpContext context)
+        {
+            if (context.Request.Path.StartsWithSegments("/graphql"))
+            {
+                var requestBody = context.Request.Body;
+                var streamReader = new StreamReader(requestBody);
+                var bodyString = await streamReader.ReadToEndAsync();
+
+                var query = JsonConvert.DeserializeObject<IDictionary<string, string>>(bodyString);
+                var executionResult = await _queryExecutor.ExecuteAsync(query["Query"]);
+                var jsonSerializer = new JsonSerializer();
+                jsonSerializer.Serialize(new JsonTextWriter(new StreamWriter(context.Response.Body)), executionResult.Data);
+                var serializeObject = JsonConvert.SerializeObject(executionResult.Data);
+                await context.Response.WriteAsync(serializeObject);
+            }
+            else
+            {
+                await _next(context);
+            }
+        }
+    }
+}

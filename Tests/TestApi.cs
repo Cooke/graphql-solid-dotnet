@@ -20,7 +20,9 @@ namespace Tests
 
         public Task<User[]> Users => _context.Users.ToArrayAsync().ContinueWith(t => t.Result.Select(x => new User(x)).ToArray());
 
-        //public async Task<User> User(int id) => new User(await _context.Users.FindAsync(id));
+        public Task<User[]> UsersFunc() => _context.Users.ToArrayAsync().ContinueWith(t => t.Result.Select(x => new User(x)).ToArray());
+
+        public Task<User> User(string username) => _context.Users.FirstOrDefaultAsync(x => x.Username == username).ContinueWith(x => x.Result != null ? new User(x.Result) : null);
 
         //[Authorize]
         //public async Task<User> ProtectedUser(int id) => new User(await _context.Users.FindAsync(id));

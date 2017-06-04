@@ -78,7 +78,7 @@ namespace Tests
                 var fieldName = field.Name.Value;
                 var fieldType = objectType.GetFieldType(fieldName);
                 // TODO check that field exists (not null). If null ignore
-                var responseValue = await ExecuteFieldAsync(objectType, objectValue, field, fieldType);
+                var responseValue = await ExecuteFieldAsync(objectType, objectValue, fieldType, field);
                 result.Add(responseKey, responseValue);
             }
 
@@ -91,11 +91,47 @@ namespace Tests
             return selections.Cast<GraphQLFieldSelection>().GroupBy(x => x.Alias?.Value ?? x.Name.Value).ToDictionary(x => x.Key, x => x.ToList());
         }
 
-        private static async Task<JToken> ExecuteFieldAsync(ObjectGraphType objectType, object objectValue, GraphQLFieldSelection field, GraphType fieldType)
+        private static async Task<JToken> ExecuteFieldAsync(ObjectGraphType objectType, object objectValue, GraphType fieldType, GraphQLFieldSelection field)
         {
-            var resolvedValue = await objectType.ResolveAsync(objectValue, field.Name.Value);
+            var argumentValues = CoerceArgumentValues(objectType, field);
+            var resolvedValue = await objectType.ResolveAsync(objectValue, field.Name.Value, argumentValues);
             
             return await CompleteValue(field, fieldType, resolvedValue);
+        }
+
+        private static Dictionary<string, object> CoerceArgumentValues(ObjectGraphType objectType, GraphQLFieldSelection field)
+        {
+            var coercedValues = new Dictionary<string, object>();
+            var argumentValues = field.Arguments.ToDictionary(x => x.Name.Value);
+            var fieldName = field.Name;
+            var argumentDefinitions = objectType.GetArgumentDefinitions(fieldName.Value);
+            foreach (var argumentDefinition in argumentDefinitions)
+            {
+                var argumentName = argumentDefinition.Name;
+                var argumentType = argumentDefinition.Type;
+                if (!argumentValues.ContainsKey(argumentName))
+                {
+                    if (argumentDefinition.HasDefaultValue)
+                    {
+                        coercedValues[argumentName] = argumentDefinition.DefaultValue;
+                    }
+                    // TODO check null
+                }
+                else
+                {
+                    var value = argumentValues[argumentName];
+                    // TODO add coercing
+
+                    coercedValues[argumentName] = CoerceInputValue(value, argumentType);
+                }
+            }
+
+            return coercedValues;
+        }
+
+        private static object CoerceInputValue(GraphQLArgument value, GraphType argumentType)
+        {
+            return argumentType.InputCoerceValue(value.Value);
         }
 
         private static async Task<JToken> CompleteValue(GraphQLFieldSelection field, GraphType fieldType, object resolvedValue)

@@ -1,32 +1,10 @@
 using System;
-using System.Reflection;
 
 namespace Tests
 {
     public class SchemaBuilderOptions
     {
         public IFieldNamingStrategy NamingStrategy { get; set; } = new CamelCaseFieldNamingStrategy();
-    }
-
-    public interface IFieldNamingStrategy
-    {
-        string ResolveFieldName(MemberInfo memberInfo);
-    }
-
-    class CamelCaseFieldNamingStrategy : IFieldNamingStrategy
-    {
-        public string ResolveFieldName(MemberInfo memberInfo)
-        {
-            var fieldName = memberInfo.Name;
-            if (string.IsNullOrEmpty(fieldName) || !char.IsUpper(fieldName[0]))
-            {
-                return fieldName;
-            }
-
-            char[] charArray = fieldName.ToCharArray();
-            charArray[0] = char.ToLowerInvariant(charArray[0]);
-            return new string(charArray);
-        }
     }
 
     public class SchemaBuilder

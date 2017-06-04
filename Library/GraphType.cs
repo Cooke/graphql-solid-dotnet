@@ -1,4 +1,5 @@
 using System;
+using GraphQLParser.AST;
 
 namespace Tests
 {
@@ -12,5 +13,7 @@ namespace Tests
         }
 
         internal Type ClrType => _clrType;
+
+        public abstract object InputCoerceValue(GraphQLValue value);
     }
 }

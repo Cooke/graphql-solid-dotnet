@@ -2,6 +2,11 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard1.4</TargetFramework>
+    <RootNamespace>Cooke.GraphQL</RootNamespace>
+    <AssemblyName>Cooke.GraphQL</AssemblyName>
+    <Authors>Henrik Cooke</Authors>
+    <Company>Cooke Software Solutions</Company>
+    <Description>A GraphQL .NET server library.</Description>
   </PropertyGroup>
 
   <ItemGroup>
