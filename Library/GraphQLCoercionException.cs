@@ -1,7 +1,7 @@
 using System;
 using GraphQLParser.AST;
 
-namespace Tests
+namespace Cooke.GraphQL
 {
     public class GraphQLCoercionException : Exception
     {

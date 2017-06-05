@@ -1,6 +1,7 @@
 using System;
+using Cooke.GraphQL.Types;
 
-namespace Tests
+namespace Cooke.GraphQL
 {
     public class SchemaBuilderOptions
     {

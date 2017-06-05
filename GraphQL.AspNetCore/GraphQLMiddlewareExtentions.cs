@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Builder;
 
-namespace Tests
+namespace Cooke.GraphQL.AspNetCore
 {
     public static class GraphQLMiddlewareExtentions
     {

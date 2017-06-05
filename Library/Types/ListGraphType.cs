@@ -1,5 +1,5 @@
-using System;
 using System.Linq;
+using Cooke.GraphQL.Types;
 using GraphQLParser.AST;
 
 namespace Tests

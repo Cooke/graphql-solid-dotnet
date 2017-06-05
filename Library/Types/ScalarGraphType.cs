@@ -1,4 +1,4 @@
-using System;
+using Cooke.GraphQL.Types;
 
 namespace Tests
 {

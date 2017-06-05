@@ -2,11 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Cooke.GraphQL.Types;
 using GraphQLParser;
 using GraphQLParser.AST;
 using Newtonsoft.Json.Linq;
+using Tests;
 
-namespace Tests
+namespace Cooke.GraphQL
 {
     public class QueryExecutorOptions
     {
@@ -86,7 +88,7 @@ namespace Tests
             {
                 var responseKey = fieldSet.Key;
                 // TODO add support for fragments
-                var field = Enumerable.First<GraphQLFieldSelection>(fieldSet.Value);
+                var field = fieldSet.Value.First();
                 var fieldName = field.Name.Value;
                 var fieldType = objectType.GetFieldType(fieldName);
                 // TODO check that field exists (not null). If null ignore
@@ -150,7 +152,7 @@ namespace Tests
             {
                 return await ExecuteSelectionSetAsync(field.SelectionSet, (ObjectGraphType) fieldType, resolvedValue);
             }
-            else if (fieldType is ListGraphType)
+            if (fieldType is ListGraphType)
             {
                 var listFieldType = (ListGraphType) fieldType;
                 var resultArray = new JArray();
@@ -164,10 +166,7 @@ namespace Tests
 
                 return resultArray;
             }
-            else
-            {
-                return new JValue(resolvedValue);
-            }
+            return new JValue(resolvedValue);
         }
     }
 }

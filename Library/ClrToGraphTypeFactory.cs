@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
+using Cooke.GraphQL.Types;
+using Tests;
 
-namespace Tests
+namespace Cooke.GraphQL
 {
     public class ClrToGraphTypeFactory
     {
@@ -26,15 +28,15 @@ namespace Tests
                     .First(x => x.IsConstructedGenericType && x.GetGenericTypeDefinition() == typeof(IEnumerable<>));
                 return new ListGraphType(CreateType(itemTYpe.GenericTypeArguments.Single(), inputType));
             }
-            else if (clrType == typeof(string))
+            if (clrType == typeof(string))
             {
                 return new StringGraphType();
             }
-            else if (clrType == typeof(int))
+            if (clrType == typeof(int))
             {
                 return new IntGraphType();
             }
-            else if (clrType.GetTypeInfo().IsClass)
+            if (clrType.GetTypeInfo().IsClass)
             {
                 if (!inputType)
                 {
@@ -47,10 +49,7 @@ namespace Tests
                     return new InputObjectGraphType(clrType, fields);
                 }
             }
-            else
-            {
-                throw new NotSupportedException($"The given CLR type '{clrType}' is currently not supported.");
-            }
+            throw new NotSupportedException($"The given CLR type '{clrType}' is currently not supported.");
         }
 
         private Dictionary<string, GraphFieldInfo> CreateFields(Type clrType)
@@ -82,7 +81,7 @@ namespace Tests
                 return await UnwrapResult(result);
             };
 
-            return new GraphFieldInfo(_options.NamingStrategy.ResolveFieldName(propertyInfo), type, resolver, new FieldArgumentInfo[0]);
+            return new GraphFieldInfo(_options.NamingStrategy.ResolveFieldName(propertyInfo), type, resolver, new GraphFieldArgumentInfo[0]);
         }
 
         private GraphFieldInfo CreateFieldInfo(MethodInfo methodInfo)
@@ -103,12 +102,12 @@ namespace Tests
             return new GraphFieldInfo(_options.NamingStrategy.ResolveFieldName(methodInfo), type, resolver, arguments);
         }
 
-        private FieldArgumentInfo CreateFieldArgument(ParameterInfo arg)
+        private GraphFieldArgumentInfo CreateFieldArgument(ParameterInfo arg)
         {
             var argType = CreateType(arg.ParameterType, true);
             
             // TODO use a naming strategy 
-            return new FieldArgumentInfo(argType, arg.Name, arg.HasDefaultValue, arg.DefaultValue);
+            return new GraphFieldArgumentInfo(argType, arg.Name, arg.HasDefaultValue, arg.DefaultValue);
         }
 
         private static async Task<object> UnwrapResult(object result)
@@ -123,25 +122,6 @@ namespace Tests
             }
 
             return result;
-        }
-    }
-
-    public class FieldArgumentInfo
-    {
-        public string Name { get; }
-
-        public bool HasDefaultValue { get; }
-
-        public object DefaultValue { get; }
-
-        public GraphType Type { get; }
-
-        public FieldArgumentInfo(GraphType type, string name, bool hasDefaultValue, object defaultValue)
-        {
-            Type = type;
-            Name = name;
-            HasDefaultValue = hasDefaultValue;
-            DefaultValue = defaultValue;
         }
     }
 }

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using GraphQLParser.AST;
 
-namespace Tests
+namespace Cooke.GraphQL.Types
 {
     public class ObjectGraphType : GraphType
     {
@@ -27,7 +27,7 @@ namespace Tests
             return _fields[fieldName].Type;
         }
 
-        public FieldArgumentInfo[] GetArgumentDefinitions(string fieldName)
+        public GraphFieldArgumentInfo[] GetArgumentDefinitions(string fieldName)
         {
             return _fields[fieldName].Arguments;
         }

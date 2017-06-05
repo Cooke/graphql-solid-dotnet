@@ -1,6 +1,6 @@
 using System.Reflection;
 
-namespace Tests
+namespace Cooke.GraphQL
 {
     class CamelCaseFieldNamingStrategy : IFieldNamingStrategy
     {

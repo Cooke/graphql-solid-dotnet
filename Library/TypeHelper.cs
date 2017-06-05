@@ -4,7 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 
-namespace Tests
+namespace Cooke.GraphQL
 {
     public class TypeHelper
     {

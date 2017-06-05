@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Newtonsoft.Json;
 
-namespace Tests
+namespace Cooke.GraphQL.AspNetCore
 {
     public class GraphQLMiddleware
     {

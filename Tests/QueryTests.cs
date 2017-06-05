@@ -1,20 +1,18 @@
 using System;
-using System.Globalization;
+using Cooke.GraphQL;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.PlatformAbstractions;
-using Xunit;
 using Newtonsoft.Json.Linq;
+using Xunit;
 
 namespace Tests
 {
-    public class GettingStartedTests
+    public class QueryTests
     {
         private readonly Schema _schema;
         private readonly IServiceProvider _serviceProvider;
 
-        public GettingStartedTests()
+        public QueryTests()
         {
             _schema = new SchemaBuilder()
                 .UseQuery<Query>()
@@ -33,7 +31,7 @@ namespace Tests
         }
 
         [Fact]
-        public void QueryList()
+        public void QueryListNoArguments()
         {
             var result = Exec(@"{ users { username } }");
             var expected = "{ data: { users: [ { username: 'henrik' } ] } }";
@@ -41,7 +39,7 @@ namespace Tests
         }
 
         [Fact]
-        public void QueryListFunc()
+        public void QueryFuncListNoArguments()
         {
             var result = Exec(@"{ usersFunc { username } }");
             var expected = "{ data: { usersFunc: [ { username: 'henrik' } ] } }";
@@ -49,21 +47,13 @@ namespace Tests
         }
 
         [Fact]
-        public void QueryArgument()
+        public void QueryObjectOneArgument()
         {
             var result = Exec(@"{ user(username: ""henrik"") { username } }");
             var expected = "{ data: { user: { username: 'henrik' } } }";
             AssertResult(expected, result);
         }
-
-        [Fact]
-        public void Mutation()
-        {
-            var result = Exec(@"mutation { createUser(user: { username: ""henrik"" }) { username } }");
-            var expected = "{ data: { createUser: { username: 'henrik' } } }";
-            AssertResult(expected, result);
-        }
-
+        
         private static void AssertResult(string expectedResult, ExecutionResult result)
         {
             var expectedData = JObject.Parse(expectedResult);

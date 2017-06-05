@@ -1,7 +1,7 @@
-using System;
 using GraphQLParser.AST;
+using Tests;
 
-namespace Tests
+namespace Cooke.GraphQL.Types
 {
     public class StringGraphType : ScalarGraphType
     {

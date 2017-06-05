@@ -1,7 +1,6 @@
-using System;
 using GraphQLParser.AST;
 
-namespace Tests
+namespace Cooke.GraphQL.Types
 {
     public abstract class GraphType
     {
