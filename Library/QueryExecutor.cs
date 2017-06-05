@@ -30,15 +30,27 @@ namespace Tests
             var parser = new Parser(lexer);
             var ast = parser.Parse(new Source(query));
 
-            var initialObjectType = _schema.Query;
-            var initialObjectValue = _options.Resolver(_schema.Query.ClrType);
+            var firstDefinition = (GraphQLOperationDefinition)ast.Definitions.First();
 
-            if (initialObjectType == null)
+            ObjectGraphType initialObjectType;
+            object initialObjectValue;
+            switch (firstDefinition.Operation)
             {
-                throw new ArgumentException();
+                case OperationType.Query:
+                    initialObjectType = _schema.Query;
+                    initialObjectValue = _options.Resolver(_schema.Query.ClrType);
+                    break;
+                case OperationType.Mutation:
+                    initialObjectType = _schema.Mutation;
+                    initialObjectValue = _options.Resolver(_schema.Mutation.ClrType);
+                    break;
+                case OperationType.Subscription:
+                    throw new NotSupportedException("Subscriptions are currently not supported.");
+                default:
+                    throw new NotSupportedException();
             }
-
-            var firstSelectionSet = ast.Definitions.OfType<GraphQLOperationDefinition>().First().SelectionSet;
+            
+            var firstSelectionSet = firstDefinition.SelectionSet;
             var data = await ExecuteSelectionSetAsync(firstSelectionSet, initialObjectType, initialObjectValue);
             return new ExecutionResult { Data = new JObject { { "data", data } } };
         }
@@ -120,8 +132,6 @@ namespace Tests
                 else
                 {
                     var value = argumentValues[argumentName];
-                    // TODO add coercing
-
                     coercedValues[argumentName] = CoerceInputValue(value, argumentType);
                 }
             }
@@ -131,7 +141,7 @@ namespace Tests
 
         private static object CoerceInputValue(GraphQLArgument value, GraphType argumentType)
         {
-            return argumentType.InputCoerceValue(value.Value);
+            return argumentType.CoerceInputValue(value.Value);
         }
 
         private static async Task<JToken> CompleteValue(GraphQLFieldSelection field, GraphType fieldType, object resolvedValue)

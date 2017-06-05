@@ -22,6 +22,7 @@ namespace Tests
         {
             if (context.Request.Path.StartsWithSegments("/graphql"))
             {
+                // TODO this impl was thrown together just to make it work. Go over it and think it through.
                 var requestBody = context.Request.Body;
                 var streamReader = new StreamReader(requestBody);
                 var bodyString = await streamReader.ReadToEndAsync();

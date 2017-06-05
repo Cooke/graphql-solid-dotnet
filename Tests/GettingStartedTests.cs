@@ -18,11 +18,13 @@ namespace Tests
         {
             _schema = new SchemaBuilder()
                 .UseQuery<Query>()
+                .UseMutation<Mutation>()
                 .Build();
 
             var services = new ServiceCollection();
             services.AddDbContext<TestContext>(x => x.UseInMemoryDatabase(Guid.NewGuid().ToString()));
             services.AddTransient<Query>();
+            services.AddTransient<Mutation>();
             _serviceProvider = services.BuildServiceProvider();
 
             var testContext = _serviceProvider.GetService<TestContext>();
@@ -51,6 +53,14 @@ namespace Tests
         {
             var result = Exec(@"{ user(username: ""henrik"") { username } }");
             var expected = "{ data: { user: { username: 'henrik' } } }";
+            AssertResult(expected, result);
+        }
+
+        [Fact]
+        public void Mutation()
+        {
+            var result = Exec(@"mutation { createUser(user: { username: ""henrik"" }) { username } }");
+            var expected = "{ data: { createUser: { username: 'henrik' } } }";
             AssertResult(expected, result);
         }
 

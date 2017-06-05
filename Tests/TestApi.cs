@@ -24,12 +24,41 @@ namespace Tests
 
         public Task<User> User(string username) => _context.Users.FirstOrDefaultAsync(x => x.Username == username).ContinueWith(x => x.Result != null ? new User(x.Result) : null);
 
+        
+
         //[Authorize]
         //public async Task<User> ProtectedUser(int id) => new User(await _context.Users.FindAsync(id));
     }
 
+    public class Mutation
+    {
+        private readonly TestContext _context;
+
+        public Mutation(TestContext context)
+        {
+            _context = context;
+        }
+
+        public async Task<User> CreateUser(UserInput user)
+        {
+            var applicationUser = new ApplicationUser
+            {
+                Username = user.Username
+            };
+
+            _context.Users.Add(applicationUser);
+            await _context.SaveChangesAsync();
+            return new User(applicationUser);
+        }
+    }
+
     public class AuthorizeAttribute : Attribute
     {
+    }
+
+    public class UserInput
+    {
+        public string Username { get; set; }
     }
 
     public class User

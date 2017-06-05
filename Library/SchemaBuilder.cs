@@ -11,6 +11,7 @@ namespace Tests
     {
         private readonly SchemaBuilderOptions _options;
         private Type _queryType;
+        private Type _mutationType;
 
         public SchemaBuilder(SchemaBuilderOptions options)
         {
@@ -27,11 +28,20 @@ namespace Tests
             return this;
         }
 
+        public SchemaBuilder UseMutation<T>()
+        {
+            _mutationType = typeof(T);
+            return this;
+        }
+
         public Schema Build()
         {
             var factory = new ClrToGraphTypeFactory(_options);
-            var graphType = factory.CreateType(_queryType);
-            return new Schema((ObjectGraphType) graphType);
+            var graphQueryType = factory.CreateType(_queryType);
+            var graphMutationType = _mutationType != null ? factory.CreateType(_mutationType) : null;
+            return new Schema((ObjectGraphType) graphQueryType, (ObjectGraphType)graphMutationType);
         }
+
+        
     }
 }

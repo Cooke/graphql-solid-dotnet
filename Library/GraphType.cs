@@ -5,15 +5,6 @@ namespace Tests
 {
     public abstract class GraphType
     {
-        private readonly Type _clrType;
-        
-        public GraphType(Type clrType)
-        {
-            _clrType = clrType;
-        }
-
-        internal Type ClrType => _clrType;
-
-        public abstract object InputCoerceValue(GraphQLValue value);
+        public abstract object CoerceInputValue(GraphQLValue value);
     }
 }

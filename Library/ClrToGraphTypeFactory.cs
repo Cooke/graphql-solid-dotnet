@@ -15,28 +15,37 @@ namespace Tests
             _options = options;
         }
 
-        public GraphType CreateType(Type clrType)
+        public GraphType CreateType(Type clrType, bool inputType = false)
         {
             clrType = TypeHelper.UnwrapTask(clrType);
 
+            // TODO add a cache and return the same type for the same CLR type
             if (TypeHelper.IsList(clrType))
             {
                 var itemTYpe = clrType.GetTypeInfo().ImplementedInterfaces
                     .First(x => x.IsConstructedGenericType && x.GetGenericTypeDefinition() == typeof(IEnumerable<>));
-                return new ListGraphType(clrType, CreateType(itemTYpe.GenericTypeArguments.Single()));
+                return new ListGraphType(CreateType(itemTYpe.GenericTypeArguments.Single(), inputType));
             }
             else if (clrType == typeof(string))
             {
-                return new StringGraphType(clrType);
+                return new StringGraphType();
             }
             else if (clrType == typeof(int))
             {
-                return new IntGraphType(clrType);
+                return new IntGraphType();
             }
             else if (clrType.GetTypeInfo().IsClass)
             {
-                var fields = CreateFields(clrType);
-                return new ObjectGraphType(clrType, fields);
+                if (!inputType)
+                {
+                    var fields = CreateFields(clrType);
+                    return new ObjectGraphType(clrType, fields);
+                }
+                else
+                {
+                    var fields = CreateInputFields(clrType);
+                    return new InputObjectGraphType(clrType, fields);
+                }
             }
             else
             {
@@ -51,6 +60,14 @@ namespace Tests
 
             var methodInfos = clrType.GetTypeInfo().DeclaredMethods.Where(x => x.IsPublic && !x.IsSpecialName && !x.IsStatic);
             fields = fields.Concat(methodInfos.Select(CreateFieldInfo));
+            return fields.ToDictionary(x => x.Name);
+        }
+
+        private Dictionary<string, GraphInputFieldInfo> CreateInputFields(Type clrType)
+        {
+            var propertyInfos = clrType.GetTypeInfo().DeclaredProperties.Where(x => x.GetMethod.IsPublic && x.SetMethod.IsPublic && !x.GetMethod.IsStatic);
+            // TODO replace reflection set property with expression
+            var fields = propertyInfos.Select(x => new GraphInputFieldInfo(_options.NamingStrategy.ResolveFieldName(x), CreateType(x.PropertyType, true), x.SetValue));
             return fields.ToDictionary(x => x.Name);
         }
 
@@ -88,7 +105,7 @@ namespace Tests
 
         private FieldArgumentInfo CreateFieldArgument(ParameterInfo arg)
         {
-            var argType = CreateType(arg.ParameterType);
+            var argType = CreateType(arg.ParameterType, true);
             
             // TODO use a naming strategy 
             return new FieldArgumentInfo(argType, arg.Name, arg.HasDefaultValue, arg.DefaultValue);
