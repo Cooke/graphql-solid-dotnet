@@ -15,11 +15,11 @@ namespace Cooke.GraphQL.Types
             _fields = fields;
         }
 
-        public Type ClrType { get; }
-
-        public async Task<object> ResolveAsync(object objectValue, string fieldName, Dictionary<string, object> argumentValues)
+        internal Type ClrType { get; }
+    
+        public GraphFieldInfo GetFieldInfo(string fieldName)
         {
-            return await _fields[fieldName].ResolveAsync(objectValue, argumentValues);
+            return _fields[fieldName];
         }
 
         public GraphType GetFieldType(string fieldName)

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 
 namespace Tests
@@ -22,7 +23,8 @@ namespace Tests
 
         public Task<User> User(string username) => _context.Users.FirstOrDefaultAsync(x => x.Username == username).ContinueWith(x => x.Result != null ? new User(x.Result) : null);
 
-        
+        [Authorize]
+        public Task<User[]> UsersProtected() => _context.Users.ToArrayAsync().ContinueWith(t => t.Result.Select(x => new User(x)).ToArray());
 
         //[Authorize]
         //public async Task<User> ProtectedUser(int id) => new User(await _context.Users.FindAsync(id));
@@ -50,9 +52,9 @@ namespace Tests
         }
     }
 
-    public class AuthorizeAttribute : Attribute
-    {
-    }
+    //public class AuthorizeAttribute : Attribute
+    //{
+    //}
 
     public class UserInput
     {

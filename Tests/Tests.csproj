@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <PackageReference Include="GraphQL-Parser" Version="2.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authorization" Version="1.1.2" />
     <PackageReference Include="Microsoft.AspNetCore.Hosting" Version="1.1.2" />
     <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="1.1.2" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="1.1.2" />

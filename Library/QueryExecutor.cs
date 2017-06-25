@@ -13,17 +13,79 @@ namespace Cooke.GraphQL
     public class QueryExecutorOptions
     {
         public Func<Type, object> Resolver = t => Activator.CreateInstance(t);
+
+        public IList<Type> MiddlewareTypes { get; set; } = new List<Type>();
+    }
+
+    public class QueryExecutorBuilder
+    {
+        private Schema _schema;
+        private IList<Type> _middlewares = new List<Type>();
+        private Func<Type, object> _resolver;
+
+        public QueryExecutorBuilder WithSchema(Schema schema)
+        {
+            _schema = schema;
+            return this;
+        }
+
+        public QueryExecutorBuilder UseMiddleware<T>()
+        {
+            _middlewares.Add(typeof(T));
+            return this;
+        }
+
+        public QueryExecutorBuilder WithResolver(Func<Type, object> resolver)
+        {
+            _resolver = resolver;
+            return this;
+        }
+
+        public QueryExecutor Build()
+        {
+            return new QueryExecutor(_schema, new QueryExecutorOptions
+            {
+                Resolver = _resolver,
+                MiddlewareTypes = _middlewares
+            });
+        }
+    }
+
+
+    public class QueryExecutionContext
+    {
+        private readonly IList<GraphError> _errors = new List<GraphError>();
+
+        public void AddError(GraphError error)
+        {
+            _errors.Add(error);
+        }
+
+        public IEnumerable<GraphError> Errors => _errors;
+    }
+
+    public class GraphError
+    {
+        public string Message { get; }
+
+        public GraphError(string message)
+        {
+            Message = message;
+        }
     }
 
     public class QueryExecutor
     {
         private readonly Schema _schema;
         private readonly QueryExecutorOptions _options;
+        private readonly List<IMiddleware> _middlewares;
 
         public QueryExecutor(Schema schema, QueryExecutorOptions options)
         {
             _schema = schema;
             _options = options;
+
+            _middlewares = options.MiddlewareTypes.Select(options.Resolver).Cast<IMiddleware>().ToList();
         }
 
         public async Task<ExecutionResult> ExecuteAsync(string query)
@@ -51,10 +113,26 @@ namespace Cooke.GraphQL
                 default:
                     throw new NotSupportedException();
             }
-            
+
+            var executionContext = new QueryExecutionContext();
             var firstSelectionSet = firstDefinition.SelectionSet;
-            var data = await ExecuteSelectionSetAsync(firstSelectionSet, initialObjectType, initialObjectValue);
-            return new ExecutionResult { Data = new JObject { { "data", data } } };
+            var data = await ExecuteSelectionSetAsync(executionContext, firstSelectionSet, initialObjectType, initialObjectValue);
+            var result = new JObject
+            {
+                { "data", data }
+            };
+
+            if (executionContext.Errors.Any())
+            {
+                var errors = new JArray();
+                foreach (var error in executionContext.Errors.Select(x => new JObject(new JProperty("message", x.Message))))
+                {
+                    errors.Add(error);
+                }
+                result.Add("errors", errors);
+            }
+
+            return new ExecutionResult { Data = result };
         }
 
         //private static readonly Dictionary<ASTNodeKind, Func<ASTNode, GraphType, object, Task<JToken>>> ProcessorMap = new Dictionary<ASTNodeKind, Func<ASTNode, GraphType, object, Task<JToken>>>
@@ -79,10 +157,11 @@ namespace Cooke.GraphQL
         //    return await ProcessorMap[ast.Kind](ast, objectType, objectValue);
         //}
 
-        private static async Task<JToken> ExecuteSelectionSetAsync(GraphQLSelectionSet ast, ObjectGraphType objectType, object objectValue)
+        private async Task<JToken> ExecuteSelectionSetAsync(QueryExecutionContext executionContext, GraphQLSelectionSet ast, ObjectGraphType objectType, object objectValue)
         {
             var groupedFieldSet = CollectFields(objectType, ast.Selections);
 
+            // TODO support both parallell and serial execution 
             var result = new JObject();
             foreach (var fieldSet in groupedFieldSet)
             {
@@ -92,7 +171,7 @@ namespace Cooke.GraphQL
                 var fieldName = field.Name.Value;
                 var fieldType = objectType.GetFieldType(fieldName);
                 // TODO check that field exists (not null). If null ignore
-                var responseValue = await ExecuteFieldAsync(objectType, objectValue, fieldType, field);
+                var responseValue = await ExecuteFieldAsync(executionContext, objectType, objectValue, fieldType, field);
                 result.Add(responseKey, responseValue);
             }
 
@@ -105,12 +184,42 @@ namespace Cooke.GraphQL
             return selections.Cast<GraphQLFieldSelection>().GroupBy(x => x.Alias?.Value ?? x.Name.Value).ToDictionary(x => x.Key, x => x.ToList());
         }
 
-        private static async Task<JToken> ExecuteFieldAsync(ObjectGraphType objectType, object objectValue, GraphType fieldType, GraphQLFieldSelection field)
+        public interface IMiddleware
+        {
+            Task<object> Resolve(FieldResolveContext fieldContext, FieldResolver next);
+        }
+
+        private async Task<JToken> ExecuteFieldAsync(QueryExecutionContext executionContext, ObjectGraphType objectType, object objectValue, GraphType fieldType, GraphQLFieldSelection field)
         {
             var argumentValues = CoerceArgumentValues(objectType, field);
-            var resolvedValue = await objectType.ResolveAsync(objectValue, field.Name.Value, argumentValues);
+
+            object resolvedValue = null;
+
+            // TODO do not catch errors if this is a non nullable field 
+            try
+            {
+                var graphFieldInfo = objectType.GetFieldInfo(field.Name.Value);
+                var fieldResolveContext = new FieldResolveContext(objectValue, argumentValues, graphFieldInfo);
+
+                FieldResolver exec = context => graphFieldInfo.Resolver(context);
+
+                // TODO create middleware once by parameterizing the last exec/next func
+                foreach (var middleware in Enumerable.Reverse(_middlewares))
+                {
+                    var middleware1 = middleware;
+                    var exec1 = exec;
+                    exec = context => middleware1.Resolve(context, exec1);
+                }
+
+                resolvedValue = await exec(fieldResolveContext);
+                
+            }
+            catch (FieldErrorException ex)
+            {
+                executionContext.AddError(new GraphError(ex.Message));
+            }
             
-            return await CompleteValue(field, fieldType, resolvedValue);
+            return await CompleteValue(executionContext, field, fieldType, resolvedValue);
         }
 
         private static Dictionary<string, object> CoerceArgumentValues(ObjectGraphType objectType, GraphQLFieldSelection field)
@@ -146,26 +255,34 @@ namespace Cooke.GraphQL
             return argumentType.CoerceInputValue(value.Value);
         }
 
-        private static async Task<JToken> CompleteValue(GraphQLFieldSelection field, GraphType fieldType, object resolvedValue)
+        private async Task<JToken> CompleteValue(QueryExecutionContext executionContext, GraphQLFieldSelection field, GraphType fieldType, object resolvedValue)
         {
             if (fieldType is ObjectGraphType)
             {
-                return await ExecuteSelectionSetAsync(field.SelectionSet, (ObjectGraphType) fieldType, resolvedValue);
+                return await ExecuteSelectionSetAsync(executionContext, field.SelectionSet, (ObjectGraphType) fieldType, resolvedValue);
             }
+
             if (fieldType is ListGraphType)
             {
                 var listFieldType = (ListGraphType) fieldType;
-                var resultArray = new JArray();
                 
                 var resolvedCollection = (IEnumerable<object>)resolvedValue;
+                if (resolvedValue == null)
+                {
+                    return null;
+                }
+
+                var resultArray = new JArray();
                 foreach (var resolvedItem in resolvedCollection)
                 {
-                    var completedValue = await CompleteValue(field, listFieldType.ItemType, resolvedItem);
+                    var completedValue =
+                        await CompleteValue(executionContext, field, listFieldType.ItemType, resolvedItem);
                     resultArray.Add(completedValue);
                 }
 
                 return resultArray;
             }
+
             return new JValue(resolvedValue);
         }
     }

@@ -11,10 +11,12 @@ namespace Cooke.GraphQL
     public class ClrToGraphTypeFactory
     {
         private readonly SchemaBuilderOptions _options;
+        private readonly IList<FieldEnhancer> _fieldEnhancers;
 
-        public ClrToGraphTypeFactory(SchemaBuilderOptions options)
+        public ClrToGraphTypeFactory(SchemaBuilderOptions options, IList<FieldEnhancer> fieldEnhancers)
         {
             _options = options;
+            _fieldEnhancers = fieldEnhancers;
         }
 
         public GraphType CreateType(Type clrType, bool inputType = false)
@@ -30,7 +32,7 @@ namespace Cooke.GraphQL
             }
             if (clrType == typeof(string))
             {
-                return new StringGraphType();
+                return StringGraphType.Instance;
             }
             if (clrType == typeof(int))
             {
@@ -55,10 +57,10 @@ namespace Cooke.GraphQL
         private Dictionary<string, GraphFieldInfo> CreateFields(Type clrType)
         {
             var propertyInfos = clrType.GetTypeInfo().DeclaredProperties.Where(x => x.GetMethod.IsPublic && !x.GetMethod.IsStatic);
-            var fields = propertyInfos.Select(CreateFieldInfo);
+            var fields = propertyInfos.Select(x => _fieldEnhancers.Aggregate(CreateFieldInfo(x), (f, e) => e(f)));
 
             var methodInfos = clrType.GetTypeInfo().DeclaredMethods.Where(x => x.IsPublic && !x.IsSpecialName && !x.IsStatic);
-            fields = fields.Concat(methodInfos.Select(CreateFieldInfo));
+            fields = fields.Concat(methodInfos.Select(x => _fieldEnhancers.Aggregate(CreateFieldInfo(x, null), (f, e) => e(f))));
             return fields.ToDictionary(x => x.Name);
         }
 
@@ -74,35 +76,58 @@ namespace Cooke.GraphQL
         {
             var type = CreateType(propertyInfo.PropertyType);
 
-            Func<object, IDictionary<string, object>, Task<object>> resolver = async (x, args) =>
+            async Task<object> Resolver(FieldResolveContext context)
             {
                 // TODO replace with a compiled expression that gets the property value
-                var result = propertyInfo.GetValue(x);
+                var result = propertyInfo.GetValue(context.Instance);
                 return await UnwrapResult(result);
-            };
+            }
 
-            return new GraphFieldInfo(_options.NamingStrategy.ResolveFieldName(propertyInfo), type, resolver, new GraphFieldArgumentInfo[0]);
+            var graphFieldInfo = new GraphFieldInfo(_options.NamingStrategy.ResolveFieldName(propertyInfo), type, Resolver, new GraphFieldArgumentInfo[0]);
+            return graphFieldInfo
+                .WithMetadataField(propertyInfo)
+                .WithMetadataField((MemberInfo)propertyInfo);
         }
 
-        private GraphFieldInfo CreateFieldInfo(MethodInfo methodInfo)
+        public GraphFieldInfo CreateFieldInfo(MethodInfo methodInfo, FieldResolver next)
         {
             var type = CreateType(methodInfo.ReturnType);
-            var arguments = methodInfo.GetParameters().Select(CreateFieldArgument).ToArray();
+            var skipParameterTypes = new[] { typeof(FieldResolveContext), typeof(FieldResolver) };
+            var resolverParameters = methodInfo.GetParameters();
+            var fieldParameters = resolverParameters.Where(x => !skipParameterTypes.Contains(x.ParameterType)).Select(CreateFieldArgument).ToArray();
+            var fieldName = _options.NamingStrategy.ResolveFieldName(methodInfo);
 
-            Func<object, IDictionary<string, object>, Task<object>> resolver = async (obj, args) =>
+            async Task<object> Resolver(FieldResolveContext context)
             {
                 // NOTE arguments have already been coerced outside of the resolve function
-                var paramteters = arguments.Select(arg => args.ContainsKey(arg.Name) ? args[arg.Name] : null).ToArray();
+                var paramteters = resolverParameters.Select(arg => GetResolverParameterValue(context, next, arg)).ToArray();
 
                 // TODO replace with a compiled expression that invokes the method
-                var result = methodInfo.Invoke(obj, paramteters);
+                var result = methodInfo.Invoke(context.Instance, paramteters);
                 return await UnwrapResult(result);
-            };
+            }
 
-            return new GraphFieldInfo(_options.NamingStrategy.ResolveFieldName(methodInfo), type, resolver, arguments);
+            return new GraphFieldInfo(fieldName, type, Resolver, fieldParameters)
+                .WithMetadataField(methodInfo)
+                .WithMetadataField((MemberInfo)methodInfo);
         }
 
-        private GraphFieldArgumentInfo CreateFieldArgument(ParameterInfo arg)
+        private static object GetResolverParameterValue(FieldResolveContext context, FieldResolver next, ParameterInfo arg)
+        {
+            if (arg.ParameterType == typeof(FieldResolveContext))
+            {
+                return context;
+            }
+
+            if (arg.ParameterType == typeof(FieldResolver))
+            {
+                return next;
+            }
+
+            return context.Args.ContainsKey(arg.Name) ? context.Args[arg.Name] : null;
+        }
+
+        public GraphFieldArgumentInfo CreateFieldArgument(ParameterInfo arg)
         {
             var argType = CreateType(arg.ParameterType, true);
             

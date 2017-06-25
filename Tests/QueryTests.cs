@@ -1,5 +1,9 @@
 using System;
+using System.Threading.Tasks;
 using Cooke.GraphQL;
+using Cooke.GraphQL.AspNetCore;
+using Cooke.GraphQL.Types;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json.Linq;
@@ -17,12 +21,15 @@ namespace Tests
             _schema = new SchemaBuilder()
                 .UseQuery<Query>()
                 .UseMutation<Mutation>()
+                .UseAttributeMetadata()
                 .Build();
 
             var services = new ServiceCollection();
             services.AddDbContext<TestContext>(x => x.UseInMemoryDatabase(Guid.NewGuid().ToString()));
             services.AddTransient<Query>();
             services.AddTransient<Mutation>();
+            services.AddTransient<AuthorizationFieldMiddleware>();
+            services.AddTransient<IHttpContextAccessor, HttpContextAccessor>();
             _serviceProvider = services.BuildServiceProvider();
 
             var testContext = _serviceProvider.GetService<TestContext>();
@@ -62,9 +69,31 @@ namespace Tests
 
         private ExecutionResult Exec(string query)
         {
-            var graphqlExecutor = new QueryExecutor(_schema, new QueryExecutorOptions { Resolver = _serviceProvider.GetRequiredService });
-            var result = graphqlExecutor.ExecuteAsync(query).Result;
+            var queryExecutor = new QueryExecutorBuilder()
+                .WithSchema(_schema)
+                .UseMiddleware<AuthorizationFieldMiddleware>()
+                .UseResolver(_serviceProvider)
+                .Build();
+            
+            var result = queryExecutor.ExecuteAsync(query).Result;
             return result;
+        }
+    }
+
+    public class CasingFieldMiddleware
+    {
+        public async Task<object> Execute(FieldResolveContext context, FieldResolver next, string casing = "upper")
+        {
+            var result = (string)await next(context);
+            
+            if (casing == "upper")
+            {
+                return result.ToUpperInvariant();
+            }
+            else
+            {
+                return result.ToLowerInvariant();
+            }
         }
     }
 }

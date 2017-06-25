@@ -5,6 +5,12 @@ namespace Cooke.GraphQL.Types
 {
     public class StringGraphType : ScalarGraphType
     {
+        public static StringGraphType Instance { get; } = new StringGraphType();
+
+        private StringGraphType()
+        {
+        }
+
         public override object CoerceInputValue(GraphQLValue value)
         {
             if (value.Kind != ASTNodeKind.StringValue)

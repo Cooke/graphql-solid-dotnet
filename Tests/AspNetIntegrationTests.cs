@@ -1,8 +1,10 @@
 using System.Net.Http;
 using System.Threading.Tasks;
+using Cooke.GraphQL;
 using Cooke.GraphQL.AspNetCore;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -41,6 +43,17 @@ namespace Tests
             Assert.Equal(JObject.Parse(expected), JObject.Parse(response));
         }
 
+        [Fact]
+        public async Task AuthorizeShallPreventUnwantedAccess()
+        {
+            var queryContent = new QueryContent { Query = @"{ usersProtected { username } }" };
+            var response = await PostAsync(queryContent);
+
+            var expected = "{ data: { usersProtected: null }, errors: [ { message: \"Access denied\" }] }";
+
+            Assert.Equal(JObject.Parse(expected), JObject.Parse(response));
+        }
+
         private async Task<string> PostAsync(QueryContent queryContent)
         {
             var httpResponseMessage = await _httpClient.PostAsync("/graphql",
@@ -58,7 +71,8 @@ namespace Tests
             public virtual void ConfigureServices(IServiceCollection services)
             {
                 services.AddDbContext<TestContext>(x => x.UseInMemoryDatabase("test"));
-                services.AddTransient<Query>();   
+                services.AddTransient<Query>();
+                services.AddGraphQL();
             }
 
             public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)

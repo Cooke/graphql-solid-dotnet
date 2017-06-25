@@ -12,10 +12,10 @@ namespace Cooke.GraphQL.AspNetCore
         private readonly RequestDelegate _next;
         private readonly QueryExecutor _queryExecutor;
 
-        public GraphQLMiddleware(RequestDelegate next, Schema schema, IServiceProvider sp)
+        public GraphQLMiddleware(RequestDelegate next, QueryExecutor queryExecutor)
         {
             _next = next;
-            _queryExecutor = new QueryExecutor(schema, new QueryExecutorOptions {Resolver = sp.GetService });
+            _queryExecutor = queryExecutor;
         }
 
         public async Task Invoke(HttpContext context)
