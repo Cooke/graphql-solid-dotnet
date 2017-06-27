@@ -1,7 +1,9 @@
 using System.Linq;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Tests;
 
 namespace Cooke.GraphQL.AspNetCore
@@ -25,12 +27,11 @@ namespace Cooke.GraphQL.AspNetCore
 
         public static IServiceCollection AddGraphQL(this IServiceCollection services)
         {
-            if (services.Any(x => x.ServiceType != typeof(IHttpContextAccessor)))
-            {
-                services.AddScoped<IHttpContextAccessor, HttpContextAccessor>();
-            }
-
+            services.TryAddScoped<IHttpContextAccessor, HttpContextAccessor>();
+            //services.TryAddSingleton<IAuthorizationPolicyProvider, DefaultAuthorizationPolicyProvider>();
+            //services.TryAddSingleton<IAuthorizationService, DefaultAuthorizationService>();
             services.AddTransient<AuthorizationFieldMiddleware>();
+            services.AddAuthorization();
             return services;
         }
 

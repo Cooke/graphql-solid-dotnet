@@ -71,8 +71,7 @@ namespace Tests
         {
             var queryExecutor = new QueryExecutorBuilder()
                 .WithSchema(_schema)
-                .UseMiddleware<AuthorizationFieldMiddleware>()
-                .UseResolver(_serviceProvider)
+                .WithResolver(_serviceProvider)
                 .Build();
             
             var result = queryExecutor.ExecuteAsync(query).Result;

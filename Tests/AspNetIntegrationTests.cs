@@ -1,14 +1,19 @@
+using System;
 using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using Cooke.GraphQL;
 using Cooke.GraphQL.AspNetCore;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features.Authentication;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Net.Http.Headers;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Xunit;
@@ -44,7 +49,7 @@ namespace Tests
         }
 
         [Fact]
-        public async Task AuthorizeShallPreventUnwantedAccess()
+        public async Task AuthorizeAttributeShallPreventUnwantedAccess()
         {
             var queryContent = new QueryContent { Query = @"{ usersProtected { username } }" };
             var response = await PostAsync(queryContent);
@@ -54,10 +59,29 @@ namespace Tests
             Assert.Equal(JObject.Parse(expected), JObject.Parse(response));
         }
 
-        private async Task<string> PostAsync(QueryContent queryContent)
+        [Fact]
+        public async Task AuthorizeAttributeShallGrantAuthorizedUsersAccess()
         {
-            var httpResponseMessage = await _httpClient.PostAsync("/graphql",
-                new StringContent(JsonConvert.SerializeObject(queryContent)));
+            var queryContent = new QueryContent { Query = @"{ usersProtected { username } }" };
+            var response = await PostAsync(queryContent, true);
+
+            var expected = "{ data: { users: [ { username: 'henrik' } ] } }";
+
+            Assert.Equal(JObject.Parse(expected), JObject.Parse(response));
+        }
+
+        private async Task<string> PostAsync(QueryContent queryContent, bool authenticate = false)
+        {
+            var stringContent = new StringContent(JsonConvert.SerializeObject(queryContent));
+            var httpRequestMessage = new HttpRequestMessage(HttpMethod.Post, "/graphql");
+
+            if (authenticate)
+            {
+                httpRequestMessage.Headers.Authorization = new AuthenticationHeaderValue("basic", "something");
+            }
+
+            httpRequestMessage.Content = stringContent;
+            var httpResponseMessage = await _httpClient.SendAsync(httpRequestMessage);
             return await httpResponseMessage.Content.ReadAsStringAsync();
         }
 
@@ -70,13 +94,28 @@ namespace Tests
         {
             public virtual void ConfigureServices(IServiceCollection services)
             {
-                services.AddDbContext<TestContext>(x => x.UseInMemoryDatabase("test"));
+                services.AddDbContext<TestContext>(x => x.UseInMemoryDatabase(Guid.NewGuid().ToString()));
                 services.AddTransient<Query>();
                 services.AddGraphQL();
+                services.AddAuthentication();
             }
 
             public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
             {
+                app.Use(async (context, next) =>
+                {
+                    if (context.Request.Headers.ContainsKey(HeaderNames.Authorization))
+                    {
+                        var claimsPrincipal = new ClaimsPrincipal(new ClaimsIdentity(new[]
+                        {
+                            new Claim(ClaimTypes.NameIdentifier, "something"), 
+                            new Claim(ClaimTypes.Role, "TestRole")
+                        }, "fake"));
+                        context.User = claimsPrincipal;
+                    }
+
+                    await next();
+                });
                 app.UseGraphQL<Query>();
             }
         }
