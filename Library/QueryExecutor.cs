@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -19,8 +20,10 @@ namespace Cooke.GraphQL
 
     public class QueryExecutorBuilder
     {
+        private static readonly QueryExecutorOptions DefaultQueryExecutorOptions = new QueryExecutorOptions();
+
+        private readonly IList<Type> _middlewares = new List<Type>();
         private Schema _schema;
-        private IList<Type> _middlewares = new List<Type>();
         private Func<Type, object> _resolver;
 
         public QueryExecutorBuilder WithSchema(Schema schema)
@@ -45,7 +48,7 @@ namespace Cooke.GraphQL
         {
             return new QueryExecutor(_schema, new QueryExecutorOptions
             {
-                Resolver = _resolver,
+                Resolver = _resolver ?? DefaultQueryExecutorOptions.Resolver,
                 MiddlewareTypes = _middlewares
             });
         }
@@ -257,16 +260,17 @@ namespace Cooke.GraphQL
 
         private async Task<JToken> CompleteValue(QueryExecutionContext executionContext, GraphQLFieldSelection field, GraphType fieldType, object resolvedValue)
         {
-            if (fieldType is ObjectGraphType)
+            var objectGraphType = fieldType as ObjectGraphType;
+            if (objectGraphType != null)
             {
-                return await ExecuteSelectionSetAsync(executionContext, field.SelectionSet, (ObjectGraphType) fieldType, resolvedValue);
+                return await ExecuteSelectionSetAsync(executionContext, field.SelectionSet, objectGraphType, resolvedValue);
             }
 
             if (fieldType is ListGraphType)
             {
                 var listFieldType = (ListGraphType) fieldType;
                 
-                var resolvedCollection = (IEnumerable<object>)resolvedValue;
+                var resolvedCollection = (IEnumerable)resolvedValue;
                 if (resolvedValue == null)
                 {
                     return null;
@@ -283,7 +287,13 @@ namespace Cooke.GraphQL
                 return resultArray;
             }
 
-            return new JValue(resolvedValue);
+            var scalarGraphType = fieldType as ScalarGraphType;
+            if (scalarGraphType != null)
+            {
+                return scalarGraphType.CoerceResultValue(resolvedValue);
+            }
+
+            throw new NotSupportedException("The given field type is not supported");
         }
     }
 }

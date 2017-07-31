@@ -3,12 +3,9 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Threading.Tasks;
-using Cooke.GraphQL;
 using Cooke.GraphQL.AspNetCore;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.Features.Authentication;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,22 +13,24 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Net.Http.Headers;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Tests.IntegrationTests.EntityFrameworkModels;
+using Tests.IntegrationTests.Schema;
 using Xunit;
 
-namespace Tests
+namespace Tests.IntegrationTests
 {
-    public class AspNetIntegrationTests
+    public class AspNetCoreTests
     {
         private readonly HttpClient _httpClient;
 
-        public AspNetIntegrationTests()
+        public AspNetCoreTests()
         {
             var appBuilder = new WebHostBuilder()
                 .UseStartup<TestStartup>();
             var testServer = new TestServer(appBuilder);
 
-            var testContext = testServer.Host.Services.GetService<TestContext>();
-            testContext.Users.Add(new ApplicationUser { Username = "henrik" });
+            var testContext = testServer.Host.Services.GetService<TestDbContext>();
+            testContext.Users.Add(new TestUser { Username = "henrik" });
             testContext.SaveChanges();
 
             _httpClient = testServer.CreateClient();
@@ -45,7 +44,7 @@ namespace Tests
             
             var expected = "{ data: { users: [ { username: 'henrik' } ] } }";
 
-            Assert.Equal(JObject.Parse(expected), JObject.Parse(response));
+            AssertResponse(expected, response);
         }
 
         [Fact]
@@ -56,7 +55,7 @@ namespace Tests
 
             var expected = "{ data: { usersProtected: null }, errors: [ { message: \"Access denied\" }] }";
 
-            Assert.Equal(JObject.Parse(expected), JObject.Parse(response));
+            AssertResponse(expected, response);
         }
 
         [Fact]
@@ -67,6 +66,11 @@ namespace Tests
 
             var expected = "{ data: { users: [ { username: 'henrik' } ] } }";
 
+            AssertResponse(expected, response);
+        }
+
+        private static void AssertResponse(string expected, string response)
+        {
             Assert.Equal(JObject.Parse(expected), JObject.Parse(response));
         }
 
@@ -94,7 +98,7 @@ namespace Tests
         {
             public virtual void ConfigureServices(IServiceCollection services)
             {
-                services.AddDbContext<TestContext>(x => x.UseInMemoryDatabase(Guid.NewGuid().ToString()));
+                services.AddDbContext<TestDbContext>(x => x.UseInMemoryDatabase(Guid.NewGuid().ToString()));
                 services.AddTransient<Query>();
                 services.AddGraphQL();
                 services.AddAuthentication();

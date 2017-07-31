@@ -7,16 +7,18 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json.Linq;
+using Tests.IntegrationTests.EntityFrameworkModels;
+using Tests.IntegrationTests.Schema;
 using Xunit;
 
-namespace Tests
+namespace Tests.IntegrationTests
 {
-    public class QueryTests
+    public class EntityFrameworkTests
     {
-        private readonly Schema _schema;
+        private readonly Cooke.GraphQL.Schema _schema;
         private readonly IServiceProvider _serviceProvider;
 
-        public QueryTests()
+        public EntityFrameworkTests()
         {
             _schema = new SchemaBuilder()
                 .UseQuery<Query>()
@@ -25,15 +27,15 @@ namespace Tests
                 .Build();
 
             var services = new ServiceCollection();
-            services.AddDbContext<TestContext>(x => x.UseInMemoryDatabase(Guid.NewGuid().ToString()));
+            services.AddDbContext<TestDbContext>(x => x.UseInMemoryDatabase(Guid.NewGuid().ToString()));
             services.AddTransient<Query>();
             services.AddTransient<Mutation>();
             services.AddTransient<AuthorizationFieldMiddleware>();
             services.AddTransient<IHttpContextAccessor, HttpContextAccessor>();
             _serviceProvider = services.BuildServiceProvider();
 
-            var testContext = _serviceProvider.GetService<TestContext>();
-            testContext.Users.Add(new ApplicationUser { Username = "henrik" });
+            var testContext = _serviceProvider.GetService<TestDbContext>();
+            testContext.Users.Add(new TestUser { Username = "henrik" });
             testContext.SaveChanges();
         }
 
@@ -60,7 +62,15 @@ namespace Tests
             var expected = "{ data: { user: { username: 'henrik' } } }";
             AssertResult(expected, result);
         }
-        
+
+        [Fact]
+        public void MutationInputObjectArgument()
+        {
+            var result = Exec(@"mutation { createUser(user: { username: ""henrik"" }) { username } }");
+            var expected = "{ data: { createUser: { username: 'henrik' } } }";
+            AssertResult(expected, result);
+        }
+
         private static void AssertResult(string expectedResult, ExecutionResult result)
         {
             var expectedData = JObject.Parse(expectedResult);

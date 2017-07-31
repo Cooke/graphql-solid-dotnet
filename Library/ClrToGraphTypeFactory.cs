@@ -12,6 +12,33 @@ namespace Cooke.GraphQL
     {
         private readonly SchemaBuilderOptions _options;
         private readonly IList<FieldEnhancer> _fieldEnhancers;
+        private readonly Dictionary<TypeCacheKey, GraphType> _typeCache = new Dictionary<TypeCacheKey, GraphType>();
+
+        private struct TypeCacheKey
+        {
+            public Type ClrType { get; set; }
+
+            public bool IsInput { get; set; }
+
+            private bool Equals(TypeCacheKey other)
+            {
+                return ClrType.Equals(other.ClrType) && IsInput == other.IsInput;
+            }
+
+            public override bool Equals(object obj)
+            {
+                if (ReferenceEquals(null, obj)) return false;
+                return obj is TypeCacheKey && Equals((TypeCacheKey) obj);
+            }
+
+            public override int GetHashCode()
+            {
+                unchecked
+                {
+                    return (ClrType.GetHashCode() * 397) ^ IsInput.GetHashCode();
+                }
+            }
+        }
 
         public ClrToGraphTypeFactory(SchemaBuilderOptions options, IList<FieldEnhancer> fieldEnhancers)
         {
@@ -23,34 +50,57 @@ namespace Cooke.GraphQL
         {
             clrType = TypeHelper.UnwrapTask(clrType);
 
-            // TODO add a cache and return the same type for the same CLR type
+            var typeCacheKey = new TypeCacheKey { ClrType = clrType, IsInput = inputType };
+            if (_typeCache.ContainsKey(typeCacheKey))
+            {
+                return _typeCache[typeCacheKey];
+            }
+
             if (TypeHelper.IsList(clrType))
             {
                 var itemTYpe = clrType.GetTypeInfo().ImplementedInterfaces
                     .First(x => x.IsConstructedGenericType && x.GetGenericTypeDefinition() == typeof(IEnumerable<>));
-                return new ListGraphType(CreateType(itemTYpe.GenericTypeArguments.Single(), inputType));
+                var listGraphType = new ListGraphType();
+                _typeCache[typeCacheKey] = listGraphType;
+                listGraphType.ItemType = CreateType(itemTYpe.GenericTypeArguments.Single(), inputType);
+                return listGraphType;
             }
+
             if (clrType == typeof(string))
             {
                 return StringGraphType.Instance;
             }
+
             if (clrType == typeof(int))
             {
                 return new IntGraphType();
             }
+
+            if (clrType.GetTypeInfo().IsEnum)
+            {
+                var enumType = new EnumGraphType(Enum.GetNames(clrType).Select(x => new EnumValue(x)), clrType);
+                _typeCache[typeCacheKey] = enumType;
+                return enumType;
+            }
+
             if (clrType.GetTypeInfo().IsClass)
             {
                 if (!inputType)
                 {
-                    var fields = CreateFields(clrType);
-                    return new ObjectGraphType(clrType, fields);
+                    var objectGraphType = new ObjectGraphType(clrType);
+                    _typeCache[typeCacheKey] = objectGraphType;
+                    objectGraphType.Fields = CreateFields(clrType);
+                    return objectGraphType;
                 }
                 else
                 {
-                    var fields = CreateInputFields(clrType);
-                    return new InputObjectGraphType(clrType, fields);
+                    var inputObjectGraphType = new InputObjectGraphType(clrType);
+                    _typeCache[typeCacheKey] = inputObjectGraphType;
+                    inputObjectGraphType.Fields = CreateInputFields(clrType);
+                    return inputObjectGraphType;
                 }
             }
+
             throw new NotSupportedException($"The given CLR type '{clrType}' is currently not supported.");
         }
 
@@ -68,7 +118,7 @@ namespace Cooke.GraphQL
         {
             var propertyInfos = clrType.GetTypeInfo().DeclaredProperties.Where(x => x.GetMethod.IsPublic && x.SetMethod.IsPublic && !x.GetMethod.IsStatic);
             // TODO replace reflection set property with expression
-            var fields = propertyInfos.Select(x => new GraphInputFieldInfo(_options.NamingStrategy.ResolveFieldName(x), CreateType(x.PropertyType, true), x.SetValue));
+            var fields = propertyInfos.Select(x => new GraphInputFieldInfo(_options.FieldNamingStrategy.ResolveFieldName(x), CreateType(x.PropertyType, true), x.SetValue));
             return fields.ToDictionary(x => x.Name);
         }
 
@@ -83,7 +133,7 @@ namespace Cooke.GraphQL
                 return await UnwrapResult(result);
             }
 
-            var graphFieldInfo = new GraphFieldInfo(_options.NamingStrategy.ResolveFieldName(propertyInfo), type, Resolver, new GraphFieldArgumentInfo[0]);
+            var graphFieldInfo = new GraphFieldInfo(_options.FieldNamingStrategy.ResolveFieldName(propertyInfo), type, Resolver, new GraphFieldArgumentInfo[0]);
             return graphFieldInfo
                 .WithMetadataField(propertyInfo)
                 .WithMetadataField((MemberInfo)propertyInfo);
@@ -95,7 +145,7 @@ namespace Cooke.GraphQL
             var skipParameterTypes = new[] { typeof(FieldResolveContext), typeof(FieldResolver) };
             var resolverParameters = methodInfo.GetParameters();
             var fieldParameters = resolverParameters.Where(x => !skipParameterTypes.Contains(x.ParameterType)).Select(CreateFieldArgument).ToArray();
-            var fieldName = _options.NamingStrategy.ResolveFieldName(methodInfo);
+            var fieldName = _options.FieldNamingStrategy.ResolveFieldName(methodInfo);
 
             async Task<object> Resolver(FieldResolveContext context)
             {
@@ -135,6 +185,7 @@ namespace Cooke.GraphQL
             return new GraphFieldArgumentInfo(argType, arg.Name, arg.HasDefaultValue, arg.DefaultValue);
         }
 
+        // TODO this is crazy, should NOT sync wait on results. Better wrap "untasked" results
         private static async Task<object> UnwrapResult(object result)
         {
             var task = result as Task;

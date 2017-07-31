@@ -7,29 +7,28 @@ namespace Cooke.GraphQL.Types
 {
     public class ObjectGraphType : GraphType
     {
-        private readonly Dictionary<string, GraphFieldInfo> _fields;
-
-        public ObjectGraphType(Type clrType, Dictionary<string, GraphFieldInfo> fields)
+        public ObjectGraphType(Type clrType)
         {
             ClrType = clrType;
-            _fields = fields;
         }
+
+        public Dictionary<string, GraphFieldInfo> Fields { get; internal set; }
 
         internal Type ClrType { get; }
     
         public GraphFieldInfo GetFieldInfo(string fieldName)
         {
-            return _fields[fieldName];
+            return Fields[fieldName];
         }
 
         public GraphType GetFieldType(string fieldName)
         {
-            return _fields[fieldName].Type;
+            return Fields[fieldName].Type;
         }
 
         public GraphFieldArgumentInfo[] GetArgumentDefinitions(string fieldName)
         {
-            return _fields[fieldName].Arguments;
+            return Fields[fieldName].Arguments;
         }
 
         public override object CoerceInputValue(GraphQLValue value)
@@ -40,19 +39,18 @@ namespace Cooke.GraphQL.Types
 
     public class InputObjectGraphType : GraphType
     {
-        private readonly Dictionary<string, GraphInputFieldInfo> _fields;
-
-        public InputObjectGraphType(Type clrType, Dictionary<string, GraphInputFieldInfo> fields)
+        public InputObjectGraphType(Type clrType)
         {
             ClrType = clrType;
-            _fields = fields;
         }
+
+        public Dictionary<string, GraphInputFieldInfo> Fields { get; internal set; }
 
         public Type ClrType { get; }
 
         public GraphType GetFieldType(string fieldName)
         {
-            return _fields[fieldName].Type;
+            return Fields[fieldName].Type;
         }
 
         public override object CoerceInputValue(GraphQLValue value)
@@ -65,12 +63,12 @@ namespace Cooke.GraphQL.Types
             var instance = Activator.CreateInstance(ClrType);
             foreach (var inputField in objectValue.Fields)
             {
-                if (!_fields.ContainsKey(inputField.Name.Value))
+                if (!Fields.ContainsKey(inputField.Name.Value))
                 {
                     throw new GraphQLCoercionException("The given field is not valid", inputField.Name.Location);
                 }
 
-                var fieldInfo = _fields[inputField.Name.Value];
+                var fieldInfo = Fields[inputField.Name.Value];
                 fieldInfo.Set(instance, fieldInfo.Type.CoerceInputValue(inputField.Value));
             }
 

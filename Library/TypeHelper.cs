@@ -10,6 +10,11 @@ namespace Cooke.GraphQL
     {
         public static bool IsList(Type clrType)
         {
+            if (clrType.IsArray)
+            {
+                return true;
+            }
+
             return typeof(IEnumerable<object>).GetTypeInfo().IsAssignableFrom(clrType.GetTypeInfo());
         }
 

@@ -9,7 +9,7 @@ namespace Cooke.GraphQL
 
     public class SchemaBuilderOptions
     {
-        public IFieldNamingStrategy NamingStrategy { get; set; } = new CamelCaseFieldNamingStrategy();
+        public IFieldNamingStrategy FieldNamingStrategy { get; set; } = new CamelCaseFieldNamingStrategy();
     }
 
     public class SchemaBuilder

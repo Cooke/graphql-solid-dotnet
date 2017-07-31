@@ -6,12 +6,7 @@ namespace Tests
 {
     public class ListGraphType : GraphType
     {
-        public ListGraphType(GraphType itemType)
-        {
-            ItemType = itemType;
-        }
-
-        public GraphType ItemType { get; }
+        public GraphType ItemType { get; internal set; }
 
         public override object CoerceInputValue(GraphQLValue value)
         {
