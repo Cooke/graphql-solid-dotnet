@@ -71,13 +71,13 @@ namespace Tests.IntegrationTests
             AssertResult(expected, result);
         }
 
-        private static void AssertResult(string expectedResult, ExecutionResult result)
+        private static void AssertResult(string expectedResult, JObject result)
         {
             var expectedData = JObject.Parse(expectedResult);
-            Assert.Equal(expectedData, result.Data);
+            Assert.Equal(expectedData, result);
         }
 
-        private ExecutionResult Exec(string query)
+        private JObject Exec(string query)
         {
             var queryExecutor = new QueryExecutorBuilder()
                 .WithSchema(_schema)

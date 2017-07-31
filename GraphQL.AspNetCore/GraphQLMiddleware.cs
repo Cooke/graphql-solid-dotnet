@@ -29,9 +29,7 @@ namespace Cooke.GraphQL.AspNetCore
 
                 var query = JsonConvert.DeserializeObject<IDictionary<string, string>>(bodyString);
                 var executionResult = await _queryExecutor.ExecuteAsync(query["Query"]);
-                var jsonSerializer = new JsonSerializer();
-                jsonSerializer.Serialize(new JsonTextWriter(new StreamWriter(context.Response.Body)), executionResult.Data);
-                var serializeObject = JsonConvert.SerializeObject(executionResult.Data);
+                var serializeObject = JsonConvert.SerializeObject(executionResult);
                 await context.Response.WriteAsync(serializeObject);
             }
             else

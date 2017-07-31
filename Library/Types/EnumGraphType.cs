@@ -32,7 +32,7 @@ namespace Cooke.GraphQL.Types
         {
             if (value.Kind != ASTNodeKind.EnumValue)
             {
-                throw new GraphQLCoercionException(
+                throw new TypeCoercionException(
                     $"Input value of type {value.Kind} could not be coerced to int", value.Location);
             }
 

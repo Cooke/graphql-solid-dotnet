@@ -164,7 +164,7 @@ namespace Tests.UnitTests
 
         private JObject ExecuteQuery(string query)
         {
-            return _queryExecutor.ExecuteAsync(query).Result.Data;
+            return _queryExecutor.ExecuteAsync(query).Result;
         }
 
         private static void AssertResponse(string expected, JObject response)

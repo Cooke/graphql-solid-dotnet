@@ -15,7 +15,7 @@ namespace Cooke.GraphQL.Types
         {
             if (value.Kind != ASTNodeKind.StringValue)
             {
-                throw new GraphQLCoercionException(
+                throw new TypeCoercionException(
                     $"Input value of type {value.Kind} could not be coerced to string", value.Location);
             }
 

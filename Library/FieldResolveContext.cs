@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using Cooke.GraphQL.Types;
 
@@ -9,7 +8,7 @@ namespace Cooke.GraphQL
         public FieldResolveContext(object objectValue, Dictionary<string, object> argumentValues, GraphFieldInfo graphFieldInfo)
         {
             Instance = objectValue;
-            Args = argumentValues;
+            Arguments = argumentValues;
             FieldInfo = graphFieldInfo;
         }
 
@@ -17,16 +16,6 @@ namespace Cooke.GraphQL
 
         public object Instance { get; }
 
-        public IDictionary<string, object> Args { get; }
-    }
-
-    public class FieldErrorException : Exception
-    {
-        public FieldErrorException(string message)
-        {
-            Message = message;
-        }
-
-        public string Message { get; }
+        public IDictionary<string, object> Arguments { get; }
     }
 }

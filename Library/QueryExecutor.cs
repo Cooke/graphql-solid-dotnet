@@ -91,7 +91,7 @@ namespace Cooke.GraphQL
             _middlewares = options.MiddlewareTypes.Select(options.Resolver).Cast<IMiddleware>().ToList();
         }
 
-        public async Task<ExecutionResult> ExecuteAsync(string query)
+        public async Task<JObject> ExecuteAsync(string query)
         {
             var lexer = new Lexer();
             var parser = new Parser(lexer);
@@ -135,30 +135,8 @@ namespace Cooke.GraphQL
                 result.Add("errors", errors);
             }
 
-            return new ExecutionResult { Data = result };
+            return result;
         }
-
-        //private static readonly Dictionary<ASTNodeKind, Func<ASTNode, GraphType, object, Task<JToken>>> ProcessorMap = new Dictionary<ASTNodeKind, Func<ASTNode, GraphType, object, Task<JToken>>>
-        //{
-        //    { ASTNodeKind.Document, CreateProcessor<GraphQLSelectionSet>(ExecuteNodeAsync)},
-        //    { ASTNodeKind.SelectionSet, CreateProcessor<GraphQLSelectionSet>(ExecuteSelectionSetAsync)},
-        //    { ASTNodeKind.OperationDefinition, CreateProcessor<GraphQLFieldSelection>(ExecuteOperationAsync) }
-        //};
-
-        //private static async Task<JToken> ExecuteOperationAsync(GraphQLFieldSelection ast, GraphType objectType, object objectValue)
-        //{
-        //    return await ExecuteNodeAsync(ast.SelectionSet, objectType, objectValue);
-        //}
-
-        //private static Func<ASTNode, GraphType, object, Task<JToken>> CreateProcessor<TNodeType>(Func<TNodeType, GraphType, object, Task<JToken>> process) where TNodeType : ASTNode
-        //{
-        //    return (node, objectType, objectValue) => process((TNodeType)node, objectType, objectValue);
-        //}
-
-        //private static async Task<JToken> ExecuteNodeAsync(ASTNode ast, GraphType objectType, object objectValue)
-        //{
-        //    return await ProcessorMap[ast.Kind](ast, objectType, objectValue);
-        //}
 
         private async Task<JToken> ExecuteSelectionSetAsync(QueryExecutionContext executionContext, GraphQLSelectionSet ast, ObjectGraphType objectType, object objectValue)
         {
@@ -183,7 +161,7 @@ namespace Cooke.GraphQL
 
         private static Dictionary<string, List<GraphQLFieldSelection>> CollectFields(GraphType objectType, IEnumerable<ASTNode> selections)
         {
-            // Not supporting fragments now
+            // TODO add support for fragments
             return selections.Cast<GraphQLFieldSelection>().GroupBy(x => x.Alias?.Value ?? x.Name.Value).ToDictionary(x => x.Key, x => x.ToList());
         }
 
@@ -266,9 +244,10 @@ namespace Cooke.GraphQL
                 return await ExecuteSelectionSetAsync(executionContext, field.SelectionSet, objectGraphType, resolvedValue);
             }
 
-            if (fieldType is ListGraphType)
+            var type = fieldType as ListGraphType;
+            if (type != null)
             {
-                var listFieldType = (ListGraphType) fieldType;
+                var listFieldType = type;
                 
                 var resolvedCollection = (IEnumerable)resolvedValue;
                 if (resolvedValue == null)

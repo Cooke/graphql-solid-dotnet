@@ -4,7 +4,7 @@ using GraphQLParser.AST;
 
 namespace Tests
 {
-    public class ListGraphType : GraphType
+    public sealed class ListGraphType : GraphType
     {
         public GraphType ItemType { get; internal set; }
 
