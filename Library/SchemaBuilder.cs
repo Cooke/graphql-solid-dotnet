@@ -57,37 +57,35 @@ namespace Cooke.GraphQL
         {
             var graphQueryType = CreateType(_queryType);
             var graphMutationType = _mutationType != null ? CreateType(_mutationType) : null;
-            return new Schema((ObjectGraphType) graphQueryType, (ObjectGraphType)graphMutationType);
+            return new Schema((ObjectGraphType) graphQueryType, (ObjectGraphType)graphMutationType, _typeCache.Values);
         }
 
         // TODO change to data driven type creation and add possibility to register custom type factories
-        private GraphType CreateType(Type clrType, bool inputType = false)
+        private GraphType CreateType(Type clrType, bool withinInputType = false)
         {
             clrType = TypeHelper.UnwrapTask(clrType);
 
-            var typeCacheKey = new TypeCacheKey { ClrType = clrType, IsInput = inputType };
+            var typeCacheKey = new TypeCacheKey { ClrType = clrType, IsInput = withinInputType && !TypeHelper.IsList(clrType) && clrType.GetTypeInfo().IsClass };
             if (_typeCache.ContainsKey(typeCacheKey))
             {
                 return _typeCache[typeCacheKey];
             }
 
-            if (TypeHelper.IsList(clrType))
+            if (clrType == typeof(bool))
             {
-                var itemTYpe = clrType.GetTypeInfo().ImplementedInterfaces
-                    .First(x => x.IsConstructedGenericType && x.GetGenericTypeDefinition() == typeof(IEnumerable<>));
-                var listGraphType = new ListGraphType();
-                _typeCache[typeCacheKey] = listGraphType;
-                listGraphType.ItemType = CreateType(itemTYpe.GenericTypeArguments.Single(), inputType);
-                return listGraphType;
+                _typeCache[typeCacheKey] = BooleanGraphtype.Instance;
+                return StringGraphType.Instance;
             }
 
             if (clrType == typeof(string))
             {
+                _typeCache[typeCacheKey] = StringGraphType.Instance;
                 return StringGraphType.Instance;
             }
 
             if (clrType == typeof(int))
             {
+                _typeCache[typeCacheKey] = IntGraphType.Instance;
                 return IntGraphType.Instance;
             }
 
@@ -98,14 +96,49 @@ namespace Cooke.GraphQL
                 return enumType;
             }
 
+            if (TypeHelper.IsList(clrType))
+            {
+                var listEnumerableType = clrType.GetTypeInfo().ImplementedInterfaces.Concat(new[] { clrType })
+                    .First(x => x.IsConstructedGenericType && x.GetGenericTypeDefinition() == typeof(IEnumerable<>));
+                var listGraphType = new ListGraphType();
+                _typeCache[typeCacheKey] = listGraphType;
+                listGraphType.ItemType = CreateType(listEnumerableType.GenericTypeArguments.Single(), withinInputType);
+                return listGraphType;
+            }
+
             if (clrType.GetTypeInfo().IsClass)
             {
-                if (!inputType)
+                var baseType = clrType.GetTypeInfo().BaseType;
+                if (baseType != typeof(object))
                 {
-                    var objectGraphType = new ObjectGraphType(clrType);
-                    _typeCache[typeCacheKey] = objectGraphType;
-                    objectGraphType.Fields = CreateFields(clrType);
-                    return objectGraphType;
+                    CreateType(baseType, withinInputType);
+                }
+
+                if (!withinInputType)
+                {
+                    GraphType resultGraphType;
+                    if (clrType.GetTypeInfo().IsAbstract)
+                    {
+                        var interfaceGraphType = new InterfaceGraphType(clrType);
+                        _typeCache[typeCacheKey] = interfaceGraphType;
+                        interfaceGraphType.Fields = CreateFields(clrType);
+                        resultGraphType = interfaceGraphType;
+                    }
+                    else
+                    {
+                        var objectGraphType = new ObjectGraphType(clrType);
+                        _typeCache[typeCacheKey] = objectGraphType;
+                        objectGraphType.Fields = CreateFields(clrType);
+                        resultGraphType = objectGraphType;
+                    }
+                    
+
+                    foreach (var subType in clrType.GetTypeInfo().Assembly.DefinedTypes.Where(x => x.BaseType == clrType))
+                    {
+                        CreateType(subType.AsType());
+                    }
+
+                    return resultGraphType;
                 }
                 else
                 {

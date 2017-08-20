@@ -11,6 +11,8 @@ namespace Cooke.GraphQL.Types
         {
         }
 
+        public override string Name => "String";
+
         public override object CoerceInputValue(GraphQLValue value)
         {
             if (value.Kind != ASTNodeKind.StringValue)

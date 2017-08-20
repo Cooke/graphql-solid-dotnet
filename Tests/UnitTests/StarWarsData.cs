@@ -1,7 +1,9 @@
 ﻿using System.Collections.Generic;
+using Cooke.GraphQL.Annotations;
 
 namespace Tests.UnitTests
 {
+    [TypeName("Episode")]
     public enum EpisodeEnum
     {
         NewHope = 4,

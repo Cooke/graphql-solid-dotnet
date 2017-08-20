@@ -1,35 +1,16 @@
 using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
+using Cooke.GraphQL.IntrospectionSchema;
 using GraphQLParser.AST;
 
 namespace Cooke.GraphQL.Types
 {
-    public sealed class ObjectGraphType : GraphType
+    public sealed class ObjectGraphType : ComplexGraphType
     {
-        public ObjectGraphType(Type clrType)
+        public ObjectGraphType(Type clrType) : base(clrType)
         {
-            ClrType = clrType;
         }
 
-        public Dictionary<string, GraphFieldInfo> Fields { get; internal set; }
-
-        internal Type ClrType { get; }
-    
-        public GraphFieldInfo GetFieldInfo(string fieldName)
-        {
-            return Fields[fieldName];
-        }
-
-        public GraphType GetFieldType(string fieldName)
-        {
-            return Fields[fieldName].Type;
-        }
-
-        public GraphFieldArgumentInfo[] GetArgumentDefinitions(string fieldName)
-        {
-            return Fields[fieldName].Arguments;
-        }
+        public override __TypeKind Kind => __TypeKind.Object;
 
         public override object CoerceInputValue(GraphQLValue value)
         {

@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
+using Cooke.GraphQL.Annotations;
+using Cooke.GraphQL.IntrospectionSchema;
 using GraphQLParser.AST;
 
 namespace Cooke.GraphQL.Types
@@ -9,6 +12,8 @@ namespace Cooke.GraphQL.Types
         public InputObjectGraphType(Type clrType)
         {
             ClrType = clrType;
+            var typeNameAttribute = clrType.GetTypeInfo().GetCustomAttribute<TypeName>();
+            Name = typeNameAttribute?.Name ?? clrType.Name;
         }
 
         public Dictionary<string, GraphInputFieldInfo> Fields { get; internal set; }
@@ -43,5 +48,9 @@ namespace Cooke.GraphQL.Types
 
             return instance;
         }
+
+        public override string Name { get; }
+
+        public override __TypeKind Kind => __TypeKind.InputObject;
     }
 }

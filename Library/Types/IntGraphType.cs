@@ -1,3 +1,4 @@
+using Cooke.GraphQL.IntrospectionSchema;
 using GraphQLParser.AST;
 using Tests;
 
@@ -22,5 +23,7 @@ namespace Cooke.GraphQL.Types
             var scalarValue = (GraphQLScalarValue) value;
             return int.Parse(scalarValue.Value);
         }
+
+        public override string Name => "Int";
     }
 }

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Cooke.GraphQL.Types;
 
 namespace Cooke.GraphQL
@@ -9,11 +10,14 @@ namespace Cooke.GraphQL
             Query = query;
         }
 
-        public Schema(ObjectGraphType queryType, ObjectGraphType mutationType)
+        public Schema(ObjectGraphType queryType, ObjectGraphType mutationType, IEnumerable<GraphType> types)
         {
             Query = queryType;
             Mutation = mutationType;
+            Types = types;
         }
+
+        public IEnumerable<GraphType> Types { get; }
 
         public ObjectGraphType Mutation { get; }
 

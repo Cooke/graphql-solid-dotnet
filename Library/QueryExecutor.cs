@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Cooke.GraphQL.IntrospectionSchema;
 using Cooke.GraphQL.Types;
 using GraphQLParser;
 using GraphQLParser.AST;
@@ -82,26 +83,41 @@ namespace Cooke.GraphQL
         private readonly Schema _schema;
         private readonly QueryExecutorOptions _options;
         private readonly List<IMiddleware> _middlewares;
+        private IntrospectionQuery _introspectionObjectValue;
+        private ObjectGraphType _introspectionObjectType;
 
         public QueryExecutor(Schema schema, QueryExecutorOptions options)
         {
             _schema = schema;
             _options = options;
+            var introspectionSchema = new SchemaBuilder().UseQuery<IntrospectionQuery>().Build();
+            _introspectionObjectValue = new IntrospectionQuery(schema, introspectionSchema);
+            _introspectionObjectType = introspectionSchema.Query;
 
             _middlewares = options.MiddlewareTypes.Select(options.Resolver).Cast<IMiddleware>().ToList();
         }
 
         public async Task<JObject> ExecuteAsync(string query)
         {
+            if (string.IsNullOrWhiteSpace(query))
+            {
+                return new JObject
+                {
+                    { "data", null },
+                    { "errors", new JArray(new JValue("A query must be specified and must be a string."))}
+                };
+            }
+
             var lexer = new Lexer();
             var parser = new Parser(lexer);
             var ast = parser.Parse(new Source(query));
 
-            var firstDefinition = (GraphQLOperationDefinition)ast.Definitions.First();
+            var firstOperationDefinition = (GraphQLOperationDefinition)ast.Definitions.First();
 
             ObjectGraphType initialObjectType;
             object initialObjectValue;
-            switch (firstDefinition.Operation)
+            bool exposeIntrospection = true;
+            switch (firstOperationDefinition.Operation)
             {
                 case OperationType.Query:
                     initialObjectType = _schema.Query;
@@ -110,6 +126,7 @@ namespace Cooke.GraphQL
                 case OperationType.Mutation:
                     initialObjectType = _schema.Mutation;
                     initialObjectValue = _options.Resolver(_schema.Mutation.ClrType);
+                    exposeIntrospection = false;
                     break;
                 case OperationType.Subscription:
                     throw new NotSupportedException("Subscriptions are currently not supported.");
@@ -118,8 +135,8 @@ namespace Cooke.GraphQL
             }
 
             var executionContext = new QueryExecutionContext();
-            var firstSelectionSet = firstDefinition.SelectionSet;
-            var data = await ExecuteSelectionSetAsync(executionContext, firstSelectionSet, initialObjectType, initialObjectValue);
+            var firstSelectionSet = firstOperationDefinition.SelectionSet;
+            var data = await ExecuteSelectionSetAsync(executionContext, firstSelectionSet, initialObjectType, initialObjectValue, exposeIntrospection);
             var result = new JObject
             {
                 { "data", data }
@@ -138,9 +155,9 @@ namespace Cooke.GraphQL
             return result;
         }
 
-        private async Task<JToken> ExecuteSelectionSetAsync(QueryExecutionContext executionContext, GraphQLSelectionSet ast, ObjectGraphType objectType, object objectValue)
+        private async Task<JToken> ExecuteSelectionSetAsync(QueryExecutionContext executionContext, GraphQLSelectionSet ast, ComplexGraphType objectType, object objectValue, bool exposeIntrospection = false)
         {
-            var groupedFieldSet = CollectFields(objectType, ast.Selections);
+            var groupedFieldSet = CollectFields(ast.Selections);
 
             // TODO support both parallell and serial execution 
             var result = new JObject();
@@ -150,16 +167,26 @@ namespace Cooke.GraphQL
                 // TODO add support for fragments
                 var field = fieldSet.Value.First();
                 var fieldName = field.Name.Value;
-                var fieldType = objectType.GetFieldType(fieldName);
+
+                // Special handling of introspection fields
+                var localObjectType = objectType;
+                var localObjectValue = objectValue;
+                if (exposeIntrospection && fieldName.StartsWith("__"))
+                {
+                    localObjectType = _introspectionObjectType;
+                    localObjectValue = _introspectionObjectValue;
+                }
+
+                var fieldType = localObjectType.GetFieldType(fieldName);
                 // TODO check that field exists (not null). If null ignore
-                var responseValue = await ExecuteFieldAsync(executionContext, objectType, objectValue, fieldType, field);
+                var responseValue = await ExecuteFieldAsync(executionContext, localObjectType, localObjectValue, fieldType, field);
                 result.Add(responseKey, responseValue);
             }
 
             return result;
         }
 
-        private static Dictionary<string, List<GraphQLFieldSelection>> CollectFields(GraphType objectType, IEnumerable<ASTNode> selections)
+        private static Dictionary<string, List<GraphQLFieldSelection>> CollectFields(IEnumerable<ASTNode> selections)
         {
             // TODO add support for fragments
             return selections.Cast<GraphQLFieldSelection>().GroupBy(x => x.Alias?.Value ?? x.Name.Value).ToDictionary(x => x.Key, x => x.ToList());
@@ -170,7 +197,7 @@ namespace Cooke.GraphQL
             Task<object> Resolve(FieldResolveContext fieldContext, FieldResolver next);
         }
 
-        private async Task<JToken> ExecuteFieldAsync(QueryExecutionContext executionContext, ObjectGraphType objectType, object objectValue, GraphType fieldType, GraphQLFieldSelection field)
+        private async Task<JToken> ExecuteFieldAsync(QueryExecutionContext executionContext, ComplexGraphType objectType, object objectValue, GraphType fieldType, GraphQLFieldSelection field)
         {
             var argumentValues = CoerceArgumentValues(objectType, field);
 
@@ -203,7 +230,7 @@ namespace Cooke.GraphQL
             return await CompleteValue(executionContext, field, fieldType, resolvedValue);
         }
 
-        private static Dictionary<string, object> CoerceArgumentValues(ObjectGraphType objectType, GraphQLFieldSelection field)
+        private static Dictionary<string, object> CoerceArgumentValues(ComplexGraphType objectType, GraphQLFieldSelection field)
         {
             var coercedValues = new Dictionary<string, object>();
             var argumentValues = field.Arguments.ToDictionary(x => x.Name.Value);
@@ -238,17 +265,15 @@ namespace Cooke.GraphQL
 
         private async Task<JToken> CompleteValue(QueryExecutionContext executionContext, GraphQLFieldSelection field, GraphType fieldType, object resolvedValue)
         {
-            var objectGraphType = fieldType as ObjectGraphType;
-            if (objectGraphType != null)
+            if (fieldType is ComplexGraphType objectGraphType)
             {
                 return await ExecuteSelectionSetAsync(executionContext, field.SelectionSet, objectGraphType, resolvedValue);
             }
 
-            var type = fieldType as ListGraphType;
-            if (type != null)
+            if (fieldType is ListGraphType type)
             {
                 var listFieldType = type;
-                
+
                 var resolvedCollection = (IEnumerable)resolvedValue;
                 if (resolvedValue == null)
                 {
@@ -266,8 +291,7 @@ namespace Cooke.GraphQL
                 return resultArray;
             }
 
-            var scalarGraphType = fieldType as ScalarGraphType;
-            if (scalarGraphType != null)
+            if (fieldType is ScalarGraphType scalarGraphType)
             {
                 return scalarGraphType.CoerceResultValue(resolvedValue);
             }

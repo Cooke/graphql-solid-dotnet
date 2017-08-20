@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices.ComTypes;
 using System.Threading.Tasks;
 
 namespace Cooke.GraphQL
@@ -10,12 +11,8 @@ namespace Cooke.GraphQL
     {
         public static bool IsList(Type clrType)
         {
-            if (clrType.IsArray)
-            {
-                return true;
-            }
-
-            return typeof(IEnumerable<object>).GetTypeInfo().IsAssignableFrom(clrType.GetTypeInfo());
+            return clrType.GetTypeInfo().ImplementedInterfaces.Concat(new[] { clrType })
+                .Any(x => x.IsConstructedGenericType && x.GetGenericTypeDefinition() == typeof(IEnumerable<>));
         }
 
         public static Type UnwrapTask(Type clrType)

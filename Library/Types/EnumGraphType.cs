@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
+using Cooke.GraphQL.Annotations;
+using Cooke.GraphQL.IntrospectionSchema;
 using GraphQLParser.AST;
 using Newtonsoft.Json.Linq;
 using Tests;
@@ -24,6 +27,9 @@ namespace Cooke.GraphQL.Types
         {
             _enumType = enumType;
             EnumValues = enumValues;
+
+            var typeNameAttribute = _enumType.GetTypeInfo().GetCustomAttribute<TypeName>();
+            Name = typeNameAttribute?.Name ?? _enumType.Name;
         }
 
         public IEnumerable<EnumValue> EnumValues { get; }
@@ -39,6 +45,10 @@ namespace Cooke.GraphQL.Types
             var scalarValue = (GraphQLScalarValue) value;
             return Enum.Parse(_enumType, scalarValue.Value, true);
         }
+
+        public override string Name { get; }
+
+        public override __TypeKind Kind => __TypeKind.Enum;
 
         public override JValue CoerceResultValue(object resolvedValue)
         {

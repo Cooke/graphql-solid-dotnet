@@ -1,4 +1,5 @@
 using System.Linq;
+using Cooke.GraphQL.IntrospectionSchema;
 using Cooke.GraphQL.Types;
 using GraphQLParser.AST;
 
@@ -17,5 +18,9 @@ namespace Tests
             
             return new[] {ItemType.CoerceInputValue(value)};
         }
+
+        public override string Name => null;
+
+        public override __TypeKind Kind => __TypeKind.List;
     }
 }

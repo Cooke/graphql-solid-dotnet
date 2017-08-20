@@ -1,7 +1,7 @@
-using Cooke.GraphQL.Types;
+using Cooke.GraphQL.IntrospectionSchema;
 using Newtonsoft.Json.Linq;
 
-namespace Tests
+namespace Cooke.GraphQL.Types
 {
     public abstract class ScalarGraphType : GraphType
     {
@@ -9,5 +9,7 @@ namespace Tests
         {
             return new JValue(resolvedValue);
         }
+
+        public override __TypeKind Kind => __TypeKind.Scalar;
     }
 }

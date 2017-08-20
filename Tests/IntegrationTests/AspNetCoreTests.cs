@@ -2,6 +2,7 @@ using System;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Security.Claims;
+using System.Text;
 using System.Threading.Tasks;
 using Cooke.GraphQL.AspNetCore;
 using Microsoft.AspNetCore.Builder;
@@ -76,7 +77,7 @@ namespace Tests.IntegrationTests
 
         private async Task<string> PostAsync(QueryContent queryContent, bool authenticate = false)
         {
-            var stringContent = new StringContent(JsonConvert.SerializeObject(queryContent));
+            var stringContent = new StringContent(JsonConvert.SerializeObject(queryContent), Encoding.UTF8, "application/json");
             var httpRequestMessage = new HttpRequestMessage(HttpMethod.Post, "/graphql");
 
             if (authenticate)
@@ -91,6 +92,7 @@ namespace Tests.IntegrationTests
 
         public class QueryContent
         {
+            [JsonProperty("query")]
             public string Query { get; set; }
         }
 
