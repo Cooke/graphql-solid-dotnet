@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using Cooke.GraphQL.Annotations;
 
 namespace Tests.UnitTests
 {
@@ -27,6 +28,7 @@ namespace Tests.UnitTests
             _data = data;
         }
 
+        [NotNull]
         public string Id => _data.Id;
 
         public string Name => _data.Name;
@@ -49,6 +51,8 @@ namespace Tests.UnitTests
         }
 
         public EpisodeEnum[] AppearsIn => _data.AppearsIn;
+
+        public string SecretBackstory => null;
     }
 
     public class Human : Character

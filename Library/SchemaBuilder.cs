@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
+using Cooke.GraphQL.Annotations;
 using Cooke.GraphQL.Types;
 using Tests;
 
@@ -154,7 +155,7 @@ namespace Cooke.GraphQL
 
         private Dictionary<string, GraphFieldInfo> CreateFields(Type clrType)
         {
-            var propertyInfos = clrType.GetTypeInfo().DeclaredProperties.Where(x => x.GetMethod.IsPublic && !x.GetMethod.IsStatic);
+            var propertyInfos = clrType.GetRuntimeProperties().Where(x => x.GetMethod.IsPublic && !x.GetMethod.IsStatic);
             var fields = propertyInfos.Select(x => _fieldEnhancers.Aggregate(CreateFieldInfo(x), (f, e) => e(f)));
 
             var methodInfos = clrType.GetTypeInfo().DeclaredMethods.Where(x => x.IsPublic && !x.IsSpecialName && !x.IsStatic);
@@ -173,15 +174,31 @@ namespace Cooke.GraphQL
         private GraphFieldInfo CreateFieldInfo(PropertyInfo propertyInfo)
         {
             var type = CreateType(propertyInfo.PropertyType);
-
-            async Task<object> Resolver(FieldResolveContext context)
+            FieldResolver resolver = async context =>
             {
                 // TODO replace with a compiled expression that gets the property value
                 var result = propertyInfo.GetValue(context.Instance);
                 return await UnwrapResult(result);
+            };
+
+            if (propertyInfo.GetCustomAttribute<NotNull>() != null)
+            {
+                type = new NotNullGraphType {ItemType = type};
+                var localResolver = resolver;
+                resolver = async context =>
+                {
+                    var resolvedValue = await localResolver(context);
+                    if (resolvedValue == null)
+                    {
+                        // TODO better exception
+                        throw new NullReferenceException();
+                    }
+
+                    return resolvedValue;
+                };
             }
 
-            var graphFieldInfo = new GraphFieldInfo(_options.FieldNamingStrategy.ResolveFieldName(propertyInfo), type, Resolver, new GraphFieldArgumentInfo[0]);
+            var graphFieldInfo = new GraphFieldInfo(_options.FieldNamingStrategy.ResolveFieldName(propertyInfo), type, resolver, new GraphFieldArgumentInfo[0]);
             return graphFieldInfo
                 .WithMetadataField(propertyInfo)
                 .WithMetadataField((MemberInfo)propertyInfo);

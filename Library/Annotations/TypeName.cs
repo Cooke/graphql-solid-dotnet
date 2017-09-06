@@ -11,4 +11,8 @@ namespace Cooke.GraphQL.Annotations
 
         public string Name { get; }
     }
+
+    public class NotNull : Attribute
+    {
+    }
 }

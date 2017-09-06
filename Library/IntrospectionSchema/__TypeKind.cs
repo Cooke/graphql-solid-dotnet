@@ -9,6 +9,6 @@
         Enum,
         InputObject,
         List,
-        NonNull
+        Non_Null
     }
 }

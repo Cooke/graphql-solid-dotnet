@@ -263,22 +263,33 @@ namespace Cooke.GraphQL
             return argumentType.CoerceInputValue(value.Value);
         }
 
-        private async Task<JToken> CompleteValue(QueryExecutionContext executionContext, GraphQLFieldSelection field, GraphType fieldType, object resolvedValue)
+        private async Task<JToken> CompleteValue(QueryExecutionContext executionContext, GraphQLFieldSelection field, GraphType fieldType, object result)
         {
+            if (fieldType is NotNullGraphType nonNullGraphType)
+            {
+                var completeValue = await CompleteValue(executionContext, field, nonNullGraphType.ItemType, result);
+                if (completeValue == null)
+                {
+                    throw new FieldErrorException("Non null field resolved to null");
+                }
+                return completeValue;
+            }
+
+            if (result == null)
+            {
+                return null;
+            }
+
             if (fieldType is ComplexGraphType objectGraphType)
             {
-                return await ExecuteSelectionSetAsync(executionContext, field.SelectionSet, objectGraphType, resolvedValue);
+                return await ExecuteSelectionSetAsync(executionContext, field.SelectionSet, objectGraphType, result);
             }
 
             if (fieldType is ListGraphType type)
             {
                 var listFieldType = type;
 
-                var resolvedCollection = (IEnumerable)resolvedValue;
-                if (resolvedValue == null)
-                {
-                    return null;
-                }
+                var resolvedCollection = (IEnumerable)result;
 
                 var resultArray = new JArray();
                 foreach (var resolvedItem in resolvedCollection)
@@ -293,7 +304,7 @@ namespace Cooke.GraphQL
 
             if (fieldType is ScalarGraphType scalarGraphType)
             {
-                return scalarGraphType.CoerceResultValue(resolvedValue);
+                return scalarGraphType.CoerceResultValue(result);
             }
 
             throw new NotSupportedException("The given field type is not supported");

@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using Cooke.GraphQL;
+﻿using Cooke.GraphQL;
 using Newtonsoft.Json.Linq;
 using Xunit;
 
