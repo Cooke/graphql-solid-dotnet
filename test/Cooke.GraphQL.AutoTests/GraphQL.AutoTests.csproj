@@ -1,7 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>    
-    <TargetFramework>netcoreapp1.1</TargetFramework>
+    <TargetFramework>netcoreapp1.1</TargetFramework>    
+    <AssemblyName>Cooke.GraphQL.AutoTests</AssemblyName>    
+    <RootNamespace>Cooke.GraphQL.AutoTests</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
@@ -19,8 +21,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\GraphQL.AspNetCore\GraphQL.AspNetCore.csproj" />
-    <ProjectReference Include="..\Library\GraphQL.csproj" />
+    <ProjectReference Include="..\..\src\Cooke.GraphQL.AspNetCore\GraphQL.AspNetCore.csproj" />
+    <ProjectReference Include="..\..\src\Cooke.GraphQL\GraphQL.csproj" />
   </ItemGroup>
 
   <ItemGroup>

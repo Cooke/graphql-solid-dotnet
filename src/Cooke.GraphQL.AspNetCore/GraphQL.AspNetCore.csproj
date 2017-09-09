@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Library\GraphQL.csproj" />
+    <ProjectReference Include="..\Cooke.GraphQL\GraphQL.csproj" />
   </ItemGroup>
 
 </Project>

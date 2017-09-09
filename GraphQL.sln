@@ -1,15 +1,19 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26430.6
+VisualStudioVersion = 15.0.26228.9
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tests", "Tests\Tests.csproj", "{237AE7F8-9EDA-416F-8A30-871557024836}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GraphQL.AutoTests", "test\Cooke.GraphQL.AutoTests\GraphQL.AutoTests.csproj", "{237AE7F8-9EDA-416F-8A30-871557024836}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GraphQL", "Library\GraphQL.csproj", "{A2B15FB0-F643-4AFF-9E50-878F98C714AF}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GraphQL", "src\Cooke.GraphQL\GraphQL.csproj", "{A2B15FB0-F643-4AFF-9E50-878F98C714AF}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GraphQL.AspNetCore", "GraphQL.AspNetCore\GraphQL.AspNetCore.csproj", "{7D358B96-9BFC-4A53-A273-2DE1D24D36FD}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GraphQL.AspNetCore", "src\Cooke.GraphQL.AspNetCore\GraphQL.AspNetCore.csproj", "{7D358B96-9BFC-4A53-A273-2DE1D24D36FD}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GraphiQLTestBench", "GraphiQLTestBench\GraphiQLTestBench.csproj", "{7C149D1C-E9A8-4BCB-B360-8EB472992163}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GraphQL.GraphiQLTestBench", "test\Cooke.GraphQL.GraphiQLTestBench\GraphQL.GraphiQLTestBench.csproj", "{7C149D1C-E9A8-4BCB-B360-8EB472992163}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{C6FCEB39-0CDF-4D76-9355-235FC9BE9C2E}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{DF172631-64AD-4151-AA51-8E3DD98C74B1}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -36,5 +40,11 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{237AE7F8-9EDA-416F-8A30-871557024836} = {DF172631-64AD-4151-AA51-8E3DD98C74B1}
+		{A2B15FB0-F643-4AFF-9E50-878F98C714AF} = {C6FCEB39-0CDF-4D76-9355-235FC9BE9C2E}
+		{7D358B96-9BFC-4A53-A273-2DE1D24D36FD} = {C6FCEB39-0CDF-4D76-9355-235FC9BE9C2E}
+		{7C149D1C-E9A8-4BCB-B360-8EB472992163} = {DF172631-64AD-4151-AA51-8E3DD98C74B1}
 	EndGlobalSection
 EndGlobal

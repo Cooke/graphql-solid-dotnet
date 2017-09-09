@@ -2,6 +2,8 @@
 
   <PropertyGroup>
     <TargetFramework>netcoreapp1.1</TargetFramework>
+    <AssemblyName>Cooke.GraphQL.GraphiQLTestBench</AssemblyName>
+    <RootNamespace>Cooke.GraphQL.GraphiQLTestBench</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
@@ -13,9 +15,9 @@
     <PackageReference Include="Microsoft.AspNetCore" Version="1.1.2" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\GraphQL.AspNetCore\GraphQL.AspNetCore.csproj" />
-    <ProjectReference Include="..\Library\GraphQL.csproj" />
-    <ProjectReference Include="..\Tests\Tests.csproj" />
+    <ProjectReference Include="..\..\src\Cooke.GraphQL.AspNetCore\GraphQL.AspNetCore.csproj" />
+    <ProjectReference Include="..\..\src\Cooke.GraphQL\GraphQL.csproj" />
+    <ProjectReference Include="..\Cooke.GraphQL.AutoTests\GraphQL.AutoTests.csproj" />
   </ItemGroup>
 
 </Project>
