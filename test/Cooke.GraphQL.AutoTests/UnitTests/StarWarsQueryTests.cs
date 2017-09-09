@@ -1,8 +1,7 @@
-﻿using Cooke.GraphQL;
-using Newtonsoft.Json.Linq;
+﻿using Newtonsoft.Json.Linq;
 using Xunit;
 
-namespace Tests.UnitTests
+namespace Cooke.GraphQL.AutoTests.UnitTests
 {
     public class StarWarsQueryTests
     {

@@ -1,5 +1,4 @@
 using GraphQLParser.AST;
-using Tests;
 
 namespace Cooke.GraphQL.Types
 {

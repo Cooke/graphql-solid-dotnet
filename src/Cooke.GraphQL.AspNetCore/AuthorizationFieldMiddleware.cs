@@ -2,12 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Cooke.GraphQL;
-using Cooke.GraphQL.Types;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
+using Cooke.GraphQL;
+using Cooke.GraphQL.Types;
 
-namespace Tests
+namespace Cooke.GraphQL.AspNetCore
 {
     public class AuthorizationFieldMiddleware : QueryExecutor.IMiddleware
     {

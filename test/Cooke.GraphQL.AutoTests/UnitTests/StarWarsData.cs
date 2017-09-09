@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using Cooke.GraphQL.Annotations;
 
-namespace Tests.UnitTests
+namespace Cooke.GraphQL.AutoTests.UnitTests
 {
     [TypeName("Episode")]
     public enum EpisodeEnum

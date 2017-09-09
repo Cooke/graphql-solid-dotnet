@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 
-namespace Tests.IntegrationTests.EntityFrameworkModels
+namespace Cooke.GraphQL.AutoTests.IntegrationTests.EntityFrameworkModels
 {
     public class TestDbContext : DbContext
     {

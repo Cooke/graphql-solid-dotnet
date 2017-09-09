@@ -1,4 +1,4 @@
-﻿namespace Tests.IntegrationTests.Schema
+﻿namespace Cooke.GraphQL.AutoTests.IntegrationTests.Schema
 {
     public class UserInput
     {

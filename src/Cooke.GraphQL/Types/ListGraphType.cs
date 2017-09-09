@@ -1,9 +1,8 @@
 using System.Linq;
 using Cooke.GraphQL.IntrospectionSchema;
-using Cooke.GraphQL.Types;
 using GraphQLParser.AST;
 
-namespace Tests
+namespace Cooke.GraphQL.Types
 {
     public sealed class ListGraphType : GraphType
     {

@@ -5,7 +5,6 @@ using System.Reflection;
 using System.Threading.Tasks;
 using Cooke.GraphQL.Annotations;
 using Cooke.GraphQL.Types;
-using Tests;
 
 namespace Cooke.GraphQL
 {

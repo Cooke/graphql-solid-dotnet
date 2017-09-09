@@ -1,16 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using Cooke.GraphQL.AspNetCore;
+using Cooke.GraphQL.AutoTests.UnitTests;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Tests.UnitTests;
 
-namespace GraphiQLTestBench
+namespace Cooke.GraphQL.GraphiQLTestBench
 {
     public class Startup
     {

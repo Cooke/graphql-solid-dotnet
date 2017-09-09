@@ -2,7 +2,7 @@
 using System.Linq;
 using Cooke.GraphQL.Annotations;
 
-namespace Tests.UnitTests
+namespace Cooke.GraphQL.AutoTests.UnitTests
 {
     public class Query
     {

@@ -1,8 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 
-namespace Cooke.GraphQL.AspNetCore
+namespace Cooke.GraphQL
 {
     public static class QueryExecutorBuilderExtentions
     {

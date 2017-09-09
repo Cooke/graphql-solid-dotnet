@@ -5,7 +5,6 @@ using Cooke.GraphQL.Annotations;
 using Cooke.GraphQL.IntrospectionSchema;
 using GraphQLParser.AST;
 using Newtonsoft.Json.Linq;
-using Tests;
 
 namespace Cooke.GraphQL.Types
 {

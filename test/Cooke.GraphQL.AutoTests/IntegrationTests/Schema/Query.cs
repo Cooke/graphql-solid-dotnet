@@ -1,10 +1,10 @@
 using System.Linq;
 using System.Threading.Tasks;
+using Cooke.GraphQL.AutoTests.IntegrationTests.EntityFrameworkModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
-using Tests.IntegrationTests.EntityFrameworkModels;
 
-namespace Tests.IntegrationTests.Schema
+namespace Cooke.GraphQL.AutoTests.IntegrationTests.Schema
 {
     public class Query
     {

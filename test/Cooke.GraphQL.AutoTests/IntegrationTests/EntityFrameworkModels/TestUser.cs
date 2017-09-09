@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace Tests.IntegrationTests.EntityFrameworkModels
+namespace Cooke.GraphQL.AutoTests.IntegrationTests.EntityFrameworkModels
 {
     public class TestUser
     {

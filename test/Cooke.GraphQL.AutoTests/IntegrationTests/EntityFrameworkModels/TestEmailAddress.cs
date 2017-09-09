@@ -1,4 +1,4 @@
-﻿namespace Tests.IntegrationTests.EntityFrameworkModels
+﻿namespace Cooke.GraphQL.AutoTests.IntegrationTests.EntityFrameworkModels
 {
     public class TestEmailAddress
     {

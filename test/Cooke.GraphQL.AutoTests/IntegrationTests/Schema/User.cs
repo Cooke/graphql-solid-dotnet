@@ -1,6 +1,6 @@
-﻿using Tests.IntegrationTests.EntityFrameworkModels;
+﻿using Cooke.GraphQL.AutoTests.IntegrationTests.EntityFrameworkModels;
 
-namespace Tests.IntegrationTests.Schema
+namespace Cooke.GraphQL.AutoTests.IntegrationTests.Schema
 {
     public class User
     {

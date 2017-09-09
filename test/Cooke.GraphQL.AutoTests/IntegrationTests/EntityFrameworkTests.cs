@@ -1,17 +1,16 @@
 using System;
 using System.Threading.Tasks;
-using Cooke.GraphQL;
 using Cooke.GraphQL.AspNetCore;
+using Cooke.GraphQL.AutoTests.IntegrationTests.EntityFrameworkModels;
+using Cooke.GraphQL.AutoTests.IntegrationTests.Schema;
 using Cooke.GraphQL.Types;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json.Linq;
-using Tests.IntegrationTests.EntityFrameworkModels;
-using Tests.IntegrationTests.Schema;
 using Xunit;
 
-namespace Tests.IntegrationTests
+namespace Cooke.GraphQL.AutoTests.IntegrationTests
 {
     public class EntityFrameworkTests
     {

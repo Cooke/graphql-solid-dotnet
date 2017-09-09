@@ -8,7 +8,6 @@ using Cooke.GraphQL.Types;
 using GraphQLParser;
 using GraphQLParser.AST;
 using Newtonsoft.Json.Linq;
-using Tests;
 
 namespace Cooke.GraphQL
 {
