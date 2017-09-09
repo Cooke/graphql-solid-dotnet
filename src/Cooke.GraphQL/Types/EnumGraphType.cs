@@ -2,22 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using Cooke.GraphQL.Annotations;
-using Cooke.GraphQL.IntrospectionSchema;
+using Cooke.GraphQL.Introspection;
 using GraphQLParser.AST;
 using Newtonsoft.Json.Linq;
 
 namespace Cooke.GraphQL.Types
 {
-    public class EnumValue
-    {
-        public EnumValue(string value)
-        {
-            Value = value;
-        }
-
-        public string Value { get; }
-    }
-
     class EnumGraphType : ScalarGraphType
     {
         private readonly Type _enumType;

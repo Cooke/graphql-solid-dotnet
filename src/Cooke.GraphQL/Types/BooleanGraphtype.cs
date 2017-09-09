@@ -2,11 +2,11 @@ using GraphQLParser.AST;
 
 namespace Cooke.GraphQL.Types
 {
-    public class BooleanGraphtype : ScalarGraphType
+    public class BooleanGraphType : ScalarGraphType
     {
-        public static BooleanGraphtype Instance { get; } = new BooleanGraphtype();
+        public static BooleanGraphType Instance { get; } = new BooleanGraphType();
 
-        private BooleanGraphtype()
+        private BooleanGraphType()
         {
         }
 

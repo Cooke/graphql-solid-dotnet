@@ -1,4 +1,4 @@
-using Cooke.GraphQL.IntrospectionSchema;
+using Cooke.GraphQL.Introspection;
 using Newtonsoft.Json.Linq;
 
 namespace Cooke.GraphQL.Types

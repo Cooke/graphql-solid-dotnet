@@ -1,9 +1,7 @@
 using System;
-using System.Threading.Tasks;
 using Cooke.GraphQL.AspNetCore;
 using Cooke.GraphQL.AutoTests.IntegrationTests.EntityFrameworkModels;
 using Cooke.GraphQL.AutoTests.IntegrationTests.Schema;
-using Cooke.GraphQL.Types;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -85,23 +83,6 @@ namespace Cooke.GraphQL.AutoTests.IntegrationTests
             
             var result = queryExecutor.ExecuteAsync(query).Result;
             return result;
-        }
-    }
-
-    public class CasingFieldMiddleware
-    {
-        public async Task<object> Execute(FieldResolveContext context, FieldResolver next, string casing = "upper")
-        {
-            var result = (string)await next(context);
-            
-            if (casing == "upper")
-            {
-                return result.ToUpperInvariant();
-            }
-            else
-            {
-                return result.ToLowerInvariant();
-            }
         }
     }
 }

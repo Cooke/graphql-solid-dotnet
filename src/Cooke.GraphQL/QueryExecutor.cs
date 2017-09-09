@@ -3,7 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Cooke.GraphQL.IntrospectionSchema;
+using Cooke.GraphQL.Introspection;
 using Cooke.GraphQL.Types;
 using GraphQLParser;
 using GraphQLParser.AST;
@@ -11,72 +11,6 @@ using Newtonsoft.Json.Linq;
 
 namespace Cooke.GraphQL
 {
-    public class QueryExecutorOptions
-    {
-        public Func<Type, object> Resolver = t => Activator.CreateInstance(t);
-
-        public IList<Type> MiddlewareTypes { get; set; } = new List<Type>();
-    }
-
-    public class QueryExecutorBuilder
-    {
-        private static readonly QueryExecutorOptions DefaultQueryExecutorOptions = new QueryExecutorOptions();
-
-        private readonly IList<Type> _middlewares = new List<Type>();
-        private Schema _schema;
-        private Func<Type, object> _resolver;
-
-        public QueryExecutorBuilder WithSchema(Schema schema)
-        {
-            _schema = schema;
-            return this;
-        }
-
-        public QueryExecutorBuilder UseMiddleware<T>()
-        {
-            _middlewares.Add(typeof(T));
-            return this;
-        }
-
-        public QueryExecutorBuilder WithResolver(Func<Type, object> resolver)
-        {
-            _resolver = resolver;
-            return this;
-        }
-
-        public QueryExecutor Build()
-        {
-            return new QueryExecutor(_schema, new QueryExecutorOptions
-            {
-                Resolver = _resolver ?? DefaultQueryExecutorOptions.Resolver,
-                MiddlewareTypes = _middlewares
-            });
-        }
-    }
-
-
-    public class QueryExecutionContext
-    {
-        private readonly IList<GraphError> _errors = new List<GraphError>();
-
-        public void AddError(GraphError error)
-        {
-            _errors.Add(error);
-        }
-
-        public IEnumerable<GraphError> Errors => _errors;
-    }
-
-    public class GraphError
-    {
-        public string Message { get; }
-
-        public GraphError(string message)
-        {
-            Message = message;
-        }
-    }
-
     public class QueryExecutor
     {
         private readonly Schema _schema;
@@ -223,7 +157,7 @@ namespace Cooke.GraphQL
             }
             catch (FieldErrorException ex)
             {
-                executionContext.AddError(new GraphError(ex.Message));
+                executionContext.AddError(new GraphQLError(ex.Message));
             }
             
             return await CompleteValue(executionContext, field, fieldType, resolvedValue);

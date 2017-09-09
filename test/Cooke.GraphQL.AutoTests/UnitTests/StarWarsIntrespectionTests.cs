@@ -49,10 +49,10 @@ namespace Cooke.GraphQL.AutoTests.UnitTests
                           name: 'Episode'
                         },
                         {
-                          name: 'Human'
+                          name: 'Droid'
                         },
                         {
-                          name: 'Droid'
+                          name: 'Human'
                         },
                         {
                           name: '__Schema'

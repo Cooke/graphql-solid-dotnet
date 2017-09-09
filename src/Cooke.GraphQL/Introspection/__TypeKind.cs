@@ -1,4 +1,4 @@
-﻿namespace Cooke.GraphQL.IntrospectionSchema
+﻿namespace Cooke.GraphQL.Introspection
 {
     public enum __TypeKind
     {

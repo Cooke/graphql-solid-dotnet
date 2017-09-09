@@ -1,10 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using Cooke.GraphQL.Types;
 
-namespace Cooke.GraphQL.IntrospectionSchema
+namespace Cooke.GraphQL.Introspection
 {
     public class __Type
     {

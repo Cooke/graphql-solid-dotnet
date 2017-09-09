@@ -1,4 +1,4 @@
-using Cooke.GraphQL.IntrospectionSchema;
+using Cooke.GraphQL.Introspection;
 using GraphQLParser.AST;
 
 namespace Cooke.GraphQL.Types

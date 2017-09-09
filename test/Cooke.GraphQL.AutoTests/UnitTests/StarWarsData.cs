@@ -11,27 +11,6 @@ namespace Cooke.GraphQL.AutoTests.UnitTests
         Jedi = 6
     }
 
-    public abstract class DataCharacter
-    {
-        public string Id { get; set; }
-
-        public string Name { get; set; }
-
-        public DataCharacter[] Friends { get; set; }
-
-        public EpisodeEnum[] AppearsIn { get; set; }
-    }
-
-    public class DataHuman : DataCharacter
-    {
-        public string HomePlanet { get; set; }
-    }
-
-    public class DataDroid : DataCharacter
-    {
-        public string PrimaryFunction { get; set; }
-    }
-
     public class StarWarsData
     {
         private readonly DataHuman _luke;

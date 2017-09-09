@@ -10,11 +10,6 @@ namespace Cooke.GraphQL
 {
     public delegate GraphFieldInfo FieldEnhancer(GraphFieldInfo fieldInfo);
 
-    public class SchemaBuilderOptions
-    {
-        public IFieldNamingStrategy FieldNamingStrategy { get; set; } = new CamelCaseFieldNamingStrategy();
-    }
-
     public class SchemaBuilder
     {
         private readonly SchemaBuilderOptions _options;
@@ -73,7 +68,7 @@ namespace Cooke.GraphQL
 
             if (clrType == typeof(bool))
             {
-                _typeCache[typeCacheKey] = BooleanGraphtype.Instance;
+                _typeCache[typeCacheKey] = BooleanGraphType.Instance;
                 return StringGraphType.Instance;
             }
 

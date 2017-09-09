@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using Cooke.GraphQL.Annotations;
-using Cooke.GraphQL.IntrospectionSchema;
+using Cooke.GraphQL.Introspection;
 using GraphQLParser.AST;
 
 namespace Cooke.GraphQL.Types

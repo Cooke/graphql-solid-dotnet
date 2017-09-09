@@ -1,8 +1,7 @@
-﻿using System;
-using System.Linq;
-using System.Text;
+﻿using System.Linq;
+// ReSharper disable InconsistentNaming
 
-namespace Cooke.GraphQL.IntrospectionSchema
+namespace Cooke.GraphQL.Introspection
 {
     internal class IntrospectionQuery
     {
