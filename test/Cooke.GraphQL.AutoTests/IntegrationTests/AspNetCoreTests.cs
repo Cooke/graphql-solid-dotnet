@@ -103,7 +103,6 @@ namespace Cooke.GraphQL.AutoTests.IntegrationTests
                 services.AddDbContext<TestDbContext>(x => x.UseInMemoryDatabase(Guid.NewGuid().ToString()));
                 services.AddTransient<Query>();
                 services.AddGraphQL();
-                services.AddAuthentication();
             }
 
             public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
