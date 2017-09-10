@@ -4,9 +4,9 @@ using GraphQLParser.AST;
 
 namespace Cooke.GraphQL.Types
 {
-    public sealed class InterfaceGraphType : ComplexGraphType
+    public sealed class InterfaceType : ComplexBaseType
     {
-        public InterfaceGraphType(Type clrType) : base(clrType)
+        public InterfaceType(Type clrType) : base(clrType)
         {
         }
 

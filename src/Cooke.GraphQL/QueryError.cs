@@ -1,10 +1,10 @@
 namespace Cooke.GraphQL
 {
-    public class GraphQLError
+    public class QueryError
     {
         public string Message { get; }
 
-        public GraphQLError(string message)
+        public QueryError(string message)
         {
             Message = message;
         }

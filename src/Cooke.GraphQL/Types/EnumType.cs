@@ -8,11 +8,21 @@ using Newtonsoft.Json.Linq;
 
 namespace Cooke.GraphQL.Types
 {
-    class EnumGraphType : ScalarGraphType
+    public class EnumValue
+    {
+        public EnumValue(string value)
+        {
+            Value = value;
+        }
+
+        public string Value { get; }
+    }
+
+    class EnumType : ScalarBaseType
     {
         private readonly Type _enumType;
 
-        public EnumGraphType(IEnumerable<EnumValue> enumValues, Type enumType)
+        public EnumType(IEnumerable<EnumValue> enumValues, Type enumType)
         {
             _enumType = enumType;
             EnumValues = enumValues;

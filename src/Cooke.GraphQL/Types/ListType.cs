@@ -4,9 +4,9 @@ using GraphQLParser.AST;
 
 namespace Cooke.GraphQL.Types
 {
-    public sealed class ListGraphType : GraphType
+    public sealed class ListType : BaseType
     {
-        public GraphType ItemType { get; internal set; }
+        public BaseType ItemType { get; internal set; }
 
         public override object CoerceInputValue(GraphQLValue value)
         {

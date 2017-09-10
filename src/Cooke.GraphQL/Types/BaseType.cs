@@ -3,7 +3,7 @@ using GraphQLParser.AST;
 
 namespace Cooke.GraphQL.Types
 {
-    public abstract class GraphType
+    public abstract class BaseType
     {
         public abstract object CoerceInputValue(GraphQLValue value);
 

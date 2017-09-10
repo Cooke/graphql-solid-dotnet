@@ -1,6 +1,6 @@
 namespace Cooke.GraphQL.Types
 {
-    public class GraphFieldArgumentInfo
+    public class FieldArgumentDescriptor
     {
         public string Name { get; }
 
@@ -8,9 +8,9 @@ namespace Cooke.GraphQL.Types
 
         public object DefaultValue { get; }
 
-        public GraphType Type { get; }
+        public BaseType Type { get; }
 
-        public GraphFieldArgumentInfo(GraphType type, string name, bool hasDefaultValue, object defaultValue)
+        public FieldArgumentDescriptor(BaseType type, string name, bool hasDefaultValue, object defaultValue)
         {
             Type = type;
             Name = name;

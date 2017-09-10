@@ -2,11 +2,11 @@ using GraphQLParser.AST;
 
 namespace Cooke.GraphQL.Types
 {
-    public class StringGraphType : ScalarGraphType
+    public class StringType : ScalarBaseType
     {
-        public static StringGraphType Instance { get; } = new StringGraphType();
+        public static StringType Instance { get; } = new StringType();
 
-        private StringGraphType()
+        private StringType()
         {
         }
 

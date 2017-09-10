@@ -5,14 +5,14 @@ namespace Cooke.GraphQL
 {
     public class FieldResolveContext
     {
-        public FieldResolveContext(object objectValue, Dictionary<string, object> argumentValues, GraphFieldInfo graphFieldInfo)
+        public FieldResolveContext(object objectValue, Dictionary<string, object> argumentValues, FieldDescriptor graphFieldInfo)
         {
             Instance = objectValue;
             Arguments = argumentValues;
             FieldInfo = graphFieldInfo;
         }
 
-        public GraphFieldInfo FieldInfo { get; }
+        public FieldDescriptor FieldInfo { get; }
 
         public object Instance { get; }
 

@@ -3,7 +3,7 @@ using Newtonsoft.Json.Linq;
 
 namespace Cooke.GraphQL.Types
 {
-    public abstract class ScalarGraphType : GraphType
+    public abstract class ScalarBaseType : BaseType
     {
         public virtual JValue CoerceResultValue(object resolvedValue)
         {

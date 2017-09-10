@@ -4,7 +4,7 @@ using GraphQLParser.AST;
 
 namespace Cooke.GraphQL.Types
 {
-    public sealed class NotNullGraphType : GraphType
+    public sealed class NonNullType : BaseType
     {
         public override object CoerceInputValue(GraphQLValue value)
         {
@@ -18,7 +18,7 @@ namespace Cooke.GraphQL.Types
             return coercedInputValue;
         }
 
-        public GraphType ItemType { get; internal set; }
+        public BaseType ItemType { get; internal set; }
 
         public override string Name => null;
 

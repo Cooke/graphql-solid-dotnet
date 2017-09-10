@@ -6,31 +6,31 @@ namespace Cooke.GraphQL.Introspection
 {
     public class __Type
     {
-        private readonly GraphType _graphType;
+        private readonly BaseType _graphType;
 
-        public __Type(GraphType graphType, __TypeProvider typeProvider)
+        public __Type(BaseType graphType, __TypeProvider typeProvider)
         {
             typeProvider.RegisterType(graphType, this);
 
             _graphType = graphType;
 
-            if (_graphType is ObjectGraphType type)
+            if (_graphType is ObjectType type)
             {
                 Fields = type.Fields.Values.Select(x => new __Field(x, typeProvider)).ToArray();
             }
-            else if (_graphType is InputObjectGraphType input)
+            else if (_graphType is InputObjectType input)
             {
                 Fields = input.Fields.Values.Select(x => new __Field(x, typeProvider)).ToArray();
             }
-            else if (graphType is EnumGraphType enumType)
+            else if (graphType is EnumType enumType)
             {
                 EnumValues = enumType.EnumValues.Select(x => new __EnumValue(x.Value)).ToArray();
             }
-            else if (graphType is ListGraphType listType)
+            else if (graphType is ListType listType)
             {
                 OfType = typeProvider.GetOrCreateType(listType.ItemType);
             }
-            else if (graphType is NotNullGraphType nonNullType)
+            else if (graphType is NonNullType nonNullType)
             {
                 OfType = typeProvider.GetOrCreateType(nonNullType.ItemType);
             }

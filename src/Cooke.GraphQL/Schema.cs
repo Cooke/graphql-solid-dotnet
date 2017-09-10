@@ -5,22 +5,22 @@ namespace Cooke.GraphQL
 {
     public class Schema
     {
-        public Schema(ObjectGraphType query)
+        public Schema(ObjectType query)
         {
             Query = query;
         }
 
-        public Schema(ObjectGraphType queryType, ObjectGraphType mutationType, IEnumerable<GraphType> types)
+        public Schema(ObjectType queryType, ObjectType mutationType, IEnumerable<BaseType> types)
         {
             Query = queryType;
             Mutation = mutationType;
             Types = types;
         }
 
-        public IEnumerable<GraphType> Types { get; }
+        public IEnumerable<BaseType> Types { get; }
 
-        public ObjectGraphType Mutation { get; }
+        public ObjectType Mutation { get; }
 
-        public ObjectGraphType Query { get; }
+        public ObjectType Query { get; }
     }
 }

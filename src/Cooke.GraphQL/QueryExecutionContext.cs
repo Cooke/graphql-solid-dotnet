@@ -4,13 +4,13 @@ namespace Cooke.GraphQL
 {
     public class QueryExecutionContext
     {
-        private readonly IList<GraphQLError> _errors = new List<GraphQLError>();
+        private readonly IList<QueryError> _errors = new List<QueryError>();
 
-        public void AddError(GraphQLError error)
+        public void AddError(QueryError error)
         {
             _errors.Add(error);
         }
 
-        public IEnumerable<GraphQLError> Errors => _errors;
+        public IEnumerable<QueryError> Errors => _errors;
     }
 }

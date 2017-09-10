@@ -2,11 +2,11 @@ using System;
 
 namespace Cooke.GraphQL.Types
 {
-    public class GraphInputFieldInfo
+    public class InputFieldDescriptor
     {
         private readonly Action<object, object> _setter;
 
-        public GraphInputFieldInfo(string name, GraphType type, Action<object, object> setter)
+        public InputFieldDescriptor(string name, BaseType type, Action<object, object> setter)
         {
             _setter = setter;
             Name = name;
@@ -15,7 +15,7 @@ namespace Cooke.GraphQL.Types
 
         public string Name { get; }
 
-        public GraphType Type { get; }
+        public BaseType Type { get; }
 
         public void Set(object instance, object value)
         {

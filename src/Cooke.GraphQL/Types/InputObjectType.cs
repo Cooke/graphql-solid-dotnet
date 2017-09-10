@@ -7,20 +7,20 @@ using GraphQLParser.AST;
 
 namespace Cooke.GraphQL.Types
 {
-    public sealed class InputObjectGraphType : GraphType
+    public sealed class InputObjectType : BaseType
     {
-        public InputObjectGraphType(Type clrType)
+        public InputObjectType(Type clrType)
         {
             ClrType = clrType;
             var typeNameAttribute = clrType.GetTypeInfo().GetCustomAttribute<TypeName>();
             Name = typeNameAttribute?.Name ?? clrType.Name;
         }
 
-        public Dictionary<string, GraphInputFieldInfo> Fields { get; internal set; }
+        public Dictionary<string, InputFieldDescriptor> Fields { get; internal set; }
 
         public Type ClrType { get; }
 
-        public GraphType GetFieldType(string fieldName)
+        public BaseType GetFieldType(string fieldName)
         {
             return Fields[fieldName].Type;
         }

@@ -17,7 +17,7 @@ namespace Cooke.GraphQL
         private readonly QueryExecutorOptions _options;
         private readonly List<IMiddleware> _middlewares;
         private IntrospectionQuery _introspectionObjectValue;
-        private ObjectGraphType _introspectionObjectType;
+        private ObjectType _introspectionObjectType;
 
         public QueryExecutor(Schema schema, QueryExecutorOptions options)
         {
@@ -47,7 +47,7 @@ namespace Cooke.GraphQL
 
             var firstOperationDefinition = (GraphQLOperationDefinition)ast.Definitions.First();
 
-            ObjectGraphType initialObjectType;
+            ObjectType initialObjectType;
             object initialObjectValue;
             bool exposeIntrospection = true;
             switch (firstOperationDefinition.Operation)
@@ -88,7 +88,7 @@ namespace Cooke.GraphQL
             return result;
         }
 
-        private async Task<JToken> ExecuteSelectionSetAsync(QueryExecutionContext executionContext, GraphQLSelectionSet ast, ComplexGraphType objectType, object objectValue, bool exposeIntrospection = false)
+        private async Task<JToken> ExecuteSelectionSetAsync(QueryExecutionContext executionContext, GraphQLSelectionSet ast, ComplexBaseType objectType, object objectValue, bool exposeIntrospection = false)
         {
             var groupedFieldSet = CollectFields(ast.Selections);
 
@@ -130,7 +130,7 @@ namespace Cooke.GraphQL
             Task<object> Resolve(FieldResolveContext fieldContext, FieldResolver next);
         }
 
-        private async Task<JToken> ExecuteFieldAsync(QueryExecutionContext executionContext, ComplexGraphType objectType, object objectValue, GraphType fieldType, GraphQLFieldSelection field)
+        private async Task<JToken> ExecuteFieldAsync(QueryExecutionContext executionContext, ComplexBaseType objectType, object objectValue, BaseType fieldType, GraphQLFieldSelection field)
         {
             var argumentValues = CoerceArgumentValues(objectType, field);
 
@@ -157,13 +157,13 @@ namespace Cooke.GraphQL
             }
             catch (FieldErrorException ex)
             {
-                executionContext.AddError(new GraphQLError(ex.Message));
+                executionContext.AddError(new QueryError(ex.Message));
             }
             
             return await CompleteValue(executionContext, field, fieldType, resolvedValue);
         }
 
-        private static Dictionary<string, object> CoerceArgumentValues(ComplexGraphType objectType, GraphQLFieldSelection field)
+        private static Dictionary<string, object> CoerceArgumentValues(ComplexBaseType objectType, GraphQLFieldSelection field)
         {
             var coercedValues = new Dictionary<string, object>();
             var argumentValues = field.Arguments.ToDictionary(x => x.Name.Value);
@@ -191,14 +191,14 @@ namespace Cooke.GraphQL
             return coercedValues;
         }
 
-        private static object CoerceInputValue(GraphQLArgument value, GraphType argumentType)
+        private static object CoerceInputValue(GraphQLArgument value, BaseType argumentType)
         {
             return argumentType.CoerceInputValue(value.Value);
         }
 
-        private async Task<JToken> CompleteValue(QueryExecutionContext executionContext, GraphQLFieldSelection field, GraphType fieldType, object result)
+        private async Task<JToken> CompleteValue(QueryExecutionContext executionContext, GraphQLFieldSelection field, BaseType fieldType, object result)
         {
-            if (fieldType is NotNullGraphType nonNullGraphType)
+            if (fieldType is NonNullType nonNullGraphType)
             {
                 var completeValue = await CompleteValue(executionContext, field, nonNullGraphType.ItemType, result);
                 if (completeValue == null)
@@ -213,12 +213,12 @@ namespace Cooke.GraphQL
                 return null;
             }
 
-            if (fieldType is ComplexGraphType objectGraphType)
+            if (fieldType is ComplexBaseType objectGraphType)
             {
                 return await ExecuteSelectionSetAsync(executionContext, field.SelectionSet, objectGraphType, result);
             }
 
-            if (fieldType is ListGraphType type)
+            if (fieldType is ListType type)
             {
                 var listFieldType = type;
 
@@ -235,7 +235,7 @@ namespace Cooke.GraphQL
                 return resultArray;
             }
 
-            if (fieldType is ScalarGraphType scalarGraphType)
+            if (fieldType is ScalarBaseType scalarGraphType)
             {
                 return scalarGraphType.CoerceResultValue(result);
             }
