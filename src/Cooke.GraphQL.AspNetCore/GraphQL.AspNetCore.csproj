@@ -4,6 +4,15 @@
     <TargetFramework>netcoreapp1.1</TargetFramework>
     <AssemblyName>Cooke.GraphQL.AspNetCore</AssemblyName>
     <RootNamespace>Cooke.GraphQL.AspNetCore</RootNamespace>
+    <Version>0.0.1</Version>
+    <Authors>Henrik Cooke</Authors>
+    <Company>Cooke Software Solutions AB</Company>
+    <Description>A GraphQL .NET library for usage with ASP.NET Core.</Description>
+    <Copyright>Cooke Software Solutions</Copyright>
+    <RepositoryUrl>https://github.com/Cooke/graphql-solid-dotnet</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>graphql aspnetcore dotnet dotnetcore</PackageTags>
+    <FileVersion>9.0.1.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>

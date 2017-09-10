@@ -5,8 +5,13 @@
     <RootNamespace>Cooke.GraphQL</RootNamespace>
     <AssemblyName>Cooke.GraphQL</AssemblyName>
     <Authors>Henrik Cooke</Authors>
-    <Company>Cooke Software Solutions</Company>
+    <Company>Cooke Software Solutions AB</Company>
     <Description>A GraphQL .NET server library.</Description>
+    <Version>0.0.1</Version>
+    <Copyright>Cooke Software Solutions</Copyright>
+    <RepositoryUrl>https://github.com/Cooke/graphql-solid-dotnet</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>graphql dotnet dotnetcore aspnetcore</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>
