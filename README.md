@@ -1,7 +1,7 @@
 # GraphQL for .NET 
 This is a convention based .NET library for building [GraphQL](http://graphql.org) endpoints. It is delivered with a middleware for ASP.NET Core and supports authorization out of the box.
 
-This library is proof of concept and its existence is [motivated below](#motivation).  
+This library is proof of concept and its existence is [motivated below](#motivation). It is intended to spark a discussion at [graphql-dotnet](https://github.com/graphql-dotnet/graphql-dotnet/issues/442)
 
 ## Installation
 
@@ -26,7 +26,7 @@ public class Query {
     }
 
     // Properties and methods corresponds to fields in GraphQL
-    public IEnumerable<MyApiModel> Models => context.Models.Select(x => new MyApiModel(x)).ToArrayAsync();
+    public Task<IEnumerable<MyApiModel>> Models => context.Models.Select(x => new MyApiModel(x)).ToArrayAsync();
 
     // Support for the Authorization attribute
     [Authorize]
@@ -70,7 +70,7 @@ A great GraphQL Library should:
 * Use a convention based approach as the primary technique to define api:s
 * Should be ready to go with ASP.NET Core (delivered with middleware)
 * Should be delivered with an available/suggested authorization technique
-* Should return good error messages
+* The library interface should be intuitive/easy to understand
 
 ## Dependencies
 
