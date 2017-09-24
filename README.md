@@ -1,7 +1,7 @@
 # GraphQL for .NET 
 This is a convention based .NET library for building [GraphQL](http://graphql.org) endpoints. It is delivered with a middleware for ASP.NET Core and supports authorization out of the box.
 
-This library is proof of concept and its existence is [motivated below](#motivation). It is intended to spark a discussion at [graphql-dotnet](https://github.com/graphql-dotnet/graphql-dotnet/issues/442)
+This library is a proof of concept and its existence is [motivated below](#motivation). It is intended to spark a discussion at [graphql-dotnet](https://github.com/graphql-dotnet/graphql-dotnet/issues/442)
 
 ## Installation
 
@@ -15,9 +15,9 @@ Without ASP.NET Core integration:
 
 ## Usage with ASP.NET Core
 
-See the [integration tests](https://github.com/Cooke/graphql-plain-dotnet/tree/master/test/Cooke.GraphQL.AutoTests/IntegrationTests) for more in-depth examples or how to use the library without ASP.NET Core.
+See the [integration tests](https://github.com/Cooke/graphql-plain-dotnet/tree/master/test/Cooke.GraphQL.AutoTests/IntegrationTests) for more in-depth examples on how to use the library with and without ASP.NET Core.
 
-Define query class:
+Define a query class:
 ```C#
 public class Query {
     // Dependency injection in query constructor
@@ -41,7 +41,7 @@ public class Query {
 }
 ```
 
-Enable a GraphQL endpoint and add required service in StartUp:
+Enable a GraphQL endpoint and add required services in StartUp:
 ```C#
 public class Startup
 {
@@ -63,7 +63,7 @@ public class Startup
 ```
 
 ## Motivation (for another .NET GraphQL Library) <a name="motivation"></a>
-The creation of this library is motivated in the context of a comparison with the https://github.com/graphql-dotnet/graphql-dotnet library (the rival). The biggest motivation is to trigger a discussion within the rival and hopefully make it pivot according to the bullets below.  
+The creation of this library is motivated in the context of a comparison with the https://github.com/graphql-dotnet/graphql-dotnet library. The biggest motivation is to trigger a discussion within the community of graphql-dotnet and hopefully make it pivot according to the bullets below.  
 
 A great GraphQL Library should:
 
