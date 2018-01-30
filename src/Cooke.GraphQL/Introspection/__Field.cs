@@ -1,4 +1,5 @@
-﻿using Cooke.GraphQL.Types;
+﻿using System.Collections.Generic;
+using Cooke.GraphQL.Types;
 
 namespace Cooke.GraphQL.Introspection
 {
@@ -17,6 +18,14 @@ namespace Cooke.GraphQL.Introspection
         }
 
         public string Name { get; }
+
+        public string Description { get; }
+
+        public IEnumerable<__InputValue> Args { get; } = new List<__InputValue>();
+
+        public bool IsDeprecated => false;
+
+        public string DeprecationReason => "";
 
         public __Type Type { get; }
     }

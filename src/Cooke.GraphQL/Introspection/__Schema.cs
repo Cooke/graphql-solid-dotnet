@@ -14,6 +14,8 @@ namespace Cooke.GraphQL.Introspection
             Types = schema.Types.Concat(visibleIntrospectionTypes).Distinct().Where(x => x.Name != null).Select(x => typeProvider.GetOrCreateType(x)).ToArray();
             Directives = new List<__Directive>();
             QueryType = typeProvider.GetOrCreateType(schema.Query);
+            MutationType =  schema.Mutation != null ? typeProvider.GetOrCreateType(schema.Mutation) : null;
+            SubscriptionType = null;
         }
 
         public IReadOnlyCollection<__Type> Types { get; }
@@ -21,5 +23,10 @@ namespace Cooke.GraphQL.Introspection
         public IReadOnlyCollection<__Directive> Directives { get; }
 
         public __Type QueryType { get; }
+
+        public __Type MutationType { get; }
+
+        public __Type SubscriptionType { get; }
+
     }
 }

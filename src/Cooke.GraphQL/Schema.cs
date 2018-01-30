@@ -5,11 +5,6 @@ namespace Cooke.GraphQL
 {
     public class Schema
     {
-        public Schema(ObjectType query)
-        {
-            Query = query;
-        }
-
         public Schema(ObjectType queryType, ObjectType mutationType, IEnumerable<BaseType> types)
         {
             Query = queryType;

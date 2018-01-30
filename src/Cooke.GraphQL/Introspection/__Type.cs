@@ -17,10 +17,11 @@ namespace Cooke.GraphQL.Introspection
             if (_graphType is ObjectType type)
             {
                 Fields = type.Fields.Values.Select(x => new __Field(x, typeProvider)).ToArray();
+                Interfaces = type.Interfaces.Select(typeProvider.GetOrCreateType).ToArray();
             }
             else if (_graphType is InputObjectType input)
             {
-                Fields = input.Fields.Values.Select(x => new __Field(x, typeProvider)).ToArray();
+                InputFields = input.Fields.Values.Select(x => new __Field(x, typeProvider)).ToArray();
             }
             else if (graphType is EnumType enumType)
             {
@@ -34,15 +35,29 @@ namespace Cooke.GraphQL.Introspection
             {
                 OfType = typeProvider.GetOrCreateType(nonNullType.ItemType);
             }
+            else if (graphType is InterfaceType interfaceType)
+            {
+                Fields = interfaceType.Fields.Values.Select(x => new __Field(x, typeProvider)).ToArray();
+                // TODO possible types
+            }
         }
 
         public string Name => _graphType.Name;
 
+        // TODO add support for description
+        public string Description => "";
+
         public __TypeKind Kind => _graphType.Kind;
 
-        public IEnumerable<__Field> Fields { get; }
+        public IEnumerable<__Field> Fields { get; } = new List<__Field>();
 
-        public IEnumerable<__EnumValue> EnumValues { get; }
+        public IEnumerable<__Field> InputFields { get; } = new List<__Field>();
+
+        public IEnumerable<__Type> Interfaces { get; } = new List<__Type>();
+
+        public IEnumerable<__Type> PossibleTypes { get; } = new List<__Type>();
+
+        public IEnumerable<__EnumValue> EnumValues { get; } = new List<__EnumValue>();
 
         public __Type OfType { get; }
     }

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using Cooke.GraphQL.Annotations;
+using Cooke.GraphQL.Introspection;
 using Cooke.GraphQL.Types;
 
 namespace Cooke.GraphQL
@@ -104,9 +105,10 @@ namespace Cooke.GraphQL
             if (clrType.GetTypeInfo().IsClass)
             {
                 var baseType = clrType.GetTypeInfo().BaseType;
+                BaseType baseGraphType = null;
                 if (baseType != typeof(object))
                 {
-                    CreateType(baseType, withinInputType);
+                    baseGraphType = CreateType(baseType, withinInputType);
                 }
 
                 if (!withinInputType)
@@ -124,9 +126,13 @@ namespace Cooke.GraphQL
                         var objectGraphType = new ObjectType(clrType);
                         _types[typeCacheKey] = objectGraphType;
                         objectGraphType.Fields = CreateFields(clrType);
+
+                        // TODO better support for interface types
+                        objectGraphType.Interfaces = baseGraphType?.Kind == __TypeKind.Interface
+                            ? new List<InterfaceType> {(InterfaceType) baseGraphType}.ToArray()
+                            : new InterfaceType[0]; 
                         resultGraphType = objectGraphType;
                     }
-                    
 
                     foreach (var subType in clrType.GetTypeInfo().Assembly.DefinedTypes.Where(x => x.BaseType == clrType))
                     {

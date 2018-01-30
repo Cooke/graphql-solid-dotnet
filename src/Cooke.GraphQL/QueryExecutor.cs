@@ -16,16 +16,17 @@ namespace Cooke.GraphQL
         private readonly Schema _schema;
         private readonly QueryExecutorOptions _options;
         private readonly List<IMiddleware> _middlewares;
-        private IntrospectionQuery _introspectionObjectValue;
-        private ObjectType _introspectionObjectType;
+        private readonly IntrospectionQuery _introspectionObjectValue;
+        private readonly ObjectType _introspectionObjectType;
+        private readonly Schema _introspectionSchema;
 
         public QueryExecutor(Schema schema, QueryExecutorOptions options)
         {
             _schema = schema;
             _options = options;
-            var introspectionSchema = new SchemaBuilder().UseQuery<IntrospectionQuery>().Build();
-            _introspectionObjectValue = new IntrospectionQuery(schema, introspectionSchema);
-            _introspectionObjectType = introspectionSchema.Query;
+            _introspectionSchema = new SchemaBuilder().UseQuery<IntrospectionQuery>().Build();
+            _introspectionObjectValue = new IntrospectionQuery(schema, _introspectionSchema);
+            _introspectionObjectType = _introspectionSchema.Query;
 
             _middlewares = options.MiddlewareTypes.Select(options.Resolver).Cast<IMiddleware>().ToList();
         }
@@ -45,7 +46,8 @@ namespace Cooke.GraphQL
             var parser = new Parser(lexer);
             var ast = parser.Parse(new Source(query));
 
-            var firstOperationDefinition = (GraphQLOperationDefinition)ast.Definitions.First();
+            var firstOperationDefinition = ast.Definitions.OfType<GraphQLOperationDefinition>().Single();
+            var fragmentDefinitions = ast.Definitions.OfType<GraphQLFragmentDefinition>().ToDictionary(x => x.Name.Value);
 
             ObjectType initialObjectType;
             object initialObjectValue;
@@ -67,9 +69,10 @@ namespace Cooke.GraphQL
                     throw new NotSupportedException();
             }
 
-            var executionContext = new QueryExecutionContext();
+            var executionContext = new QueryExecutionContext(fragmentDefinitions);
             var firstSelectionSet = firstOperationDefinition.SelectionSet;
             var data = await ExecuteSelectionSetAsync(executionContext, firstSelectionSet, initialObjectType, initialObjectValue, exposeIntrospection);
+            
             var result = new JObject
             {
                 { "data", data }
@@ -90,7 +93,7 @@ namespace Cooke.GraphQL
 
         private async Task<JToken> ExecuteSelectionSetAsync(QueryExecutionContext executionContext, GraphQLSelectionSet ast, ComplexBaseType objectType, object objectValue, bool exposeIntrospection = false)
         {
-            var groupedFieldSet = CollectFields(ast.Selections);
+            var groupedFieldSet = CollectFields(objectType, executionContext, ast.Selections);
 
             // TODO support both parallell and serial execution 
             var result = new JObject();
@@ -119,10 +122,85 @@ namespace Cooke.GraphQL
             return result;
         }
 
-        private static Dictionary<string, List<GraphQLFieldSelection>> CollectFields(IEnumerable<ASTNode> selections)
+        private Dictionary<string, List<GraphQLFieldSelection>> CollectFields(BaseType objectType, QueryExecutionContext context, IEnumerable<ASTNode> selections, HashSet<string> visitedFragments = null)
         {
-            // TODO add support for fragments
-            return selections.Cast<GraphQLFieldSelection>().GroupBy(x => x.Alias?.Value ?? x.Name.Value).ToDictionary(x => x.Key, x => x.ToList());
+            visitedFragments = visitedFragments ?? new HashSet<string>();
+            var groupedFields = new Dictionary<string, List<GraphQLFieldSelection>>();
+
+            foreach (var selection in selections)
+            {
+                if (selection is GraphQLFieldSelection fieldSelection)
+                {
+                    var responseKey = fieldSelection.Alias?.Value ?? fieldSelection.Name.Value;
+                    if (!groupedFields.ContainsKey(responseKey))
+                    {
+                        groupedFields[responseKey] = new List<GraphQLFieldSelection>();
+                    }
+
+                    var groupForResponseKey = groupedFields[responseKey];
+                    groupForResponseKey.Add(fieldSelection);
+                }
+                else if (selection is GraphQLFragmentSpread fragmentSelection)
+                {
+                    var fragmentSpreadName = fragmentSelection.Name.Value;
+                    if (visitedFragments.Contains(fragmentSpreadName))
+                    {
+                        continue;
+                    }
+
+                    visitedFragments.Add(fragmentSpreadName);
+
+                    if (!context.FragmentDefinitions.ContainsKey(fragmentSpreadName))
+                    {
+                        continue;
+                    }
+
+                    var fragment = context.FragmentDefinitions[fragmentSpreadName];
+                    var fragmentTypeName = fragment.TypeCondition.Name.Value;
+                    var fragmentType = _schema.Types.Concat(_introspectionSchema.Types).First(x => x.Name == fragmentTypeName);
+                    if (!DoesFragmentTypeApply(objectType, fragmentType))
+                    {
+                        continue;
+                    }
+
+                    var fragmentSelectionSet = fragment.SelectionSet.Selections;
+                    var fragmentGroupedFieldSet = CollectFields(objectType, context, fragmentSelectionSet, visitedFragments);
+                    foreach (var fragmentGroup in fragmentGroupedFieldSet)
+                    {
+                        var responseKey = fragmentGroup.Key;
+                        if (!groupedFields.ContainsKey(responseKey))
+                        {
+                            groupedFields[responseKey] = new List<GraphQLFieldSelection>();
+                        }
+                        var groupForResponseKey = groupedFields[responseKey];
+                        groupForResponseKey.AddRange(fragmentGroup.Value);
+                    }
+                }
+                else
+                {
+                    // TODO
+                    throw new NotSupportedException();
+                }
+            }
+
+            return groupedFields;
+
+            // var groupedFields = selections.Cast<GraphQLFieldSelection>().GroupBy(x => x.Alias?.Value ?? x.Name.Value).ToDictionary(x => x.Key, x => x.ToList());
+        }
+
+        private static bool DoesFragmentTypeApply(BaseType objectType, BaseType fragmentType)
+        {
+            if (fragmentType.Kind == __TypeKind.Object)
+            {
+                return fragmentType == objectType;
+            }
+            else if (fragmentType.Kind == __TypeKind.Interface)
+            {
+                return objectType is ObjectType objType && objType.Interfaces.Any(y => y.Name == fragmentType.Name);
+            }
+            
+            // TODO support union types
+            throw new NotImplementedException();
         }
 
         public interface IMiddleware

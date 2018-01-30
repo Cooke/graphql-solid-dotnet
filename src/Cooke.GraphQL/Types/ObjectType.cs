@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Cooke.GraphQL.Introspection;
 using GraphQLParser.AST;
 
@@ -9,6 +10,8 @@ namespace Cooke.GraphQL.Types
         public ObjectType(Type clrType) : base(clrType)
         {
         }
+
+        public IEnumerable<InterfaceType> Interfaces { get; set; }
 
         public override __TypeKind Kind => __TypeKind.Object;
 
