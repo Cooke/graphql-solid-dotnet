@@ -7,7 +7,7 @@
     <Authors>Henrik Cooke</Authors>
     <Company>Cooke Software Solutions AB</Company>
     <Description>A GraphQL .NET server library.</Description>
-    <Version>0.0.1</Version>
+    <Version>0.0.2</Version>
     <Copyright>Cooke Software Solutions</Copyright>
     <RepositoryUrl>https://github.com/Cooke/graphql-solid-dotnet</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
