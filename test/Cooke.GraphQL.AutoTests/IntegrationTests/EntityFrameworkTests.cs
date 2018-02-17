@@ -80,9 +80,8 @@ namespace Cooke.GraphQL.AutoTests.IntegrationTests
                 .WithSchema(_schema)
                 .WithResolver(_serviceProvider)
                 .Build();
-            
-            var result = queryExecutor.ExecuteAsync(query).Result;
-            return result;
+
+            return queryExecutor.ExecuteRequestAsync(query).GetAwaiter().GetResult();
         }
     }
 }

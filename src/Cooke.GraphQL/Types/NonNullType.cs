@@ -1,21 +1,32 @@
 using System;
 using Cooke.GraphQL.Introspection;
 using GraphQLParser.AST;
+using Newtonsoft.Json.Linq;
 
 namespace Cooke.GraphQL.Types
 {
     public sealed class NonNullType : BaseType
     {
-        public override object CoerceInputValue(GraphQLValue value)
+        public override object CoerceInputLiteralValue(GraphQLValue value)
         {
-            var coercedInputValue = ItemType.CoerceInputValue(value);
+            var coercedInputValue = ItemType.CoerceInputLiteralValue(value);
             if (coercedInputValue == null)
             {
-                // TODO throw something better
-                throw new NullReferenceException();
+                throw new TypeCoercionException("A null value cannot be coerced to a non null value.");
             }
 
             return coercedInputValue;
+        }
+
+        public override object CoerceInputVariableValue(JToken value)
+        {
+            var coerceInputVariableValue = ItemType.CoerceInputVariableValue(value);
+            if (coerceInputVariableValue == null)
+            {
+                throw new TypeCoercionException("A null variable value cannot be coerced to a non null value.");
+            }
+
+            return coerceInputVariableValue;
         }
 
         public BaseType ItemType { get; internal set; }

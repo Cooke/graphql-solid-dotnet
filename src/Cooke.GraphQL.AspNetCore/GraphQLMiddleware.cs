@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace Cooke.GraphQL.AspNetCore
 {
@@ -25,9 +26,9 @@ namespace Cooke.GraphQL.AspNetCore
         {
             if (context.Request.Path.StartsWithSegments("/graphql"))
             {
-                var query = await GetQuery(context);
+                var queryRequest = await GetQueryRequest(context);
 
-                var executionResult = await _queryExecutor.ExecuteAsync(query);
+                var executionResult = await _queryExecutor.ExecuteRequestAsync(queryRequest.Query, queryRequest.OperationName, queryRequest.Variables);
                 var serializeObject = JsonConvert.SerializeObject(executionResult);
                 await context.Response.WriteAsync(serializeObject);
             }
@@ -37,30 +38,41 @@ namespace Cooke.GraphQL.AspNetCore
             }
         }
 
-        private static async Task<string> GetQuery(HttpContext context)
+        private static async Task<QueryRequest> GetQueryRequest(HttpContext context)
         {
-            MediaTypeHeaderValue contentMediaType;
-            if (!MediaTypeHeaderValue.TryParse(context.Request.ContentType, out contentMediaType))
+            if (!MediaTypeHeaderValue.TryParse(context.Request.ContentType, out var contentMediaType))
             {
                 return null;
             }
 
-            var requestBody = context.Request.Body;
-            var streamReader = new StreamReader(requestBody, Encoding.GetEncoding(contentMediaType.CharSet ?? "utf-8"));
-            var bodyString = await streamReader.ReadToEndAsync();
+            var streamReader = new StreamReader(context.Request.Body, Encoding.GetEncoding(contentMediaType.CharSet ?? "utf-8"));
 
             if (contentMediaType.MediaType == "application/json")
             {
-                var requestJson = JsonConvert.DeserializeObject<IDictionary<string, string>>(bodyString);
-                return requestJson != null && requestJson.ContainsKey("query") ? requestJson["query"] : null;
+                var inputToken = await JToken.ReadFromAsync(new JsonTextReader(streamReader));
+                return new QueryRequest
+                {
+                    OperationName = inputToken["operationName"]?.Value<string>(),
+                    Query = inputToken["query"]?.Value<string>(),
+                    Variables = (JObject) inputToken["variables"]
+                };
             }
 
             if (contentMediaType.MediaType == "application/graphql")
             {
-                return bodyString;
+                return new QueryRequest {Query = await streamReader.ReadToEndAsync()};
             }
 
             return null;
+        }
+
+        private class QueryRequest
+        {
+            public string Query { get; set; }
+
+            public JObject Variables { get; set; }
+
+            public string OperationName { get; set; }
         }
     }
 }

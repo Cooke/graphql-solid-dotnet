@@ -11,7 +11,7 @@ namespace Cooke.GraphQL.Introspection
             var typeProvider = new __TypeProvider();
             // The introspection query type is an implementation detail and should not be visible to the consumer
             var visibleIntrospectionTypes = introspectionSchema.Types.Where(x => !(x is ObjectType o && o.ClrType == typeof(IntrospectionQuery)));
-            Types = schema.Types.Concat(visibleIntrospectionTypes).Distinct().Where(x => x.Name != null).Select(x => typeProvider.GetOrCreateType(x)).ToArray();
+            Types = schema.Types.Concat(visibleIntrospectionTypes).Distinct().Where(x => x.Name != null).Select(x => typeProvider.GetOrCreateType(x)).OrderBy(x => x.Name).ToArray();
             Directives = new List<__Directive>();
             QueryType = typeProvider.GetOrCreateType(schema.Query);
             MutationType =  schema.Mutation != null ? typeProvider.GetOrCreateType(schema.Mutation) : null;

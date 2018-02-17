@@ -1,4 +1,6 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using System;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Xunit;
 
 namespace Cooke.GraphQL.AutoTests.UnitTests
@@ -32,60 +34,62 @@ namespace Cooke.GraphQL.AutoTests.UnitTests
 
             var result = ExecuteQuery(query);
 
-            AssertResponse(@"{
-                data: {
-                    __schema: {
-                      types: [
-                        {
-                          name: 'Query'
-                        },
-                        {
-                          name: 'Character'
-                        },
-                        {
-                          name: 'String'
-                        },
-                        {
-                          name: 'Episode'
-                        },
-                        {
-                          name: 'Droid'
-                        },
-                        {
-                          name: 'Human'
-                        },
-                        {
-                          name: '__Schema'
-                        },
-                        {
-                          name: '__Type'
-                        },
-                        {
-                          name: '__TypeKind'
-                        },
-                        {
-                          name: '__Field'
-                        },
-                        {
-                          name: '__EnumValue'
-                        },
-                        {
-                          name: 'Boolean'
-                        },
-                        {
-                          name: '__Directive'
-                        },
-                        {
-                          name: '__DirectiveLocation'
-                        },
+            Console.WriteLine(result.ToString(Formatting.Indented));
 
-                        {
-                          name: '__InputValue'
-                        },
-                      ]
-                    }
-                  }
-                }", result);
+            AssertResponse(@"
+{
+  'data': {
+            '__schema': {
+                'types': [
+                {
+                    'name': '__Directive'
+                },
+                {
+                    'name': '__DirectiveLocation'
+                },
+                {
+                    'name': '__EnumValue'
+                },
+                {
+                    'name': '__Field'
+                },
+                {
+                    'name': '__InputValue'
+                },
+                {
+                    'name': '__Schema'
+                },
+                {
+                    'name': '__Type'
+                },
+                {
+                    'name': '__TypeKind'
+                },
+                {
+                    'name': 'Boolean'
+                },
+                {
+                    'name': 'Character'
+                },
+                {
+                    'name': 'Droid'
+                },
+                {
+                    'name': 'Episode'
+                },
+                {
+                    'name': 'Human'
+                },
+                {
+                    'name': 'Query'
+                },
+                {
+                    'name': 'String'
+                }
+                ]
+            }
+        }
+    }", result);
         }
 
         [Fact]
@@ -332,7 +336,7 @@ namespace Cooke.GraphQL.AutoTests.UnitTests
 
         private JObject ExecuteQuery(string query)
         {
-            return _queryExecutor.ExecuteAsync(query).Result;
+            return _queryExecutor.ExecuteRequestAsync(query).Result;
         }
 
         private static void AssertResponse(string expected, JObject response)

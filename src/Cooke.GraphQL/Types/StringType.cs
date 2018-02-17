@@ -1,4 +1,5 @@
 using GraphQLParser.AST;
+using Newtonsoft.Json.Linq;
 
 namespace Cooke.GraphQL.Types
 {
@@ -10,14 +11,35 @@ namespace Cooke.GraphQL.Types
         {
         }
 
+        public override object CoerceInputVariableValue(JToken value)
+        {
+            if (value == null)
+            {
+                return null;
+            }
+
+            if (value.Type != JTokenType.String)
+            {
+                throw new TypeCoercionException(
+                    $"Input variable value of type {value.Type} could not be coerced to string.");
+            }
+
+            return value.Value<string>();
+        }
+
         public override string Name => "String";
 
-        public override object CoerceInputValue(GraphQLValue value)
+        public override object CoerceInputLiteralValue(GraphQLValue value)
         {
+            if (value == null)
+            {
+                return null;
+            }
+
             if (value.Kind != ASTNodeKind.StringValue)
             {
                 throw new TypeCoercionException(
-                    $"Input value of type {value.Kind} could not be coerced to string", value.Location);
+                    $"Input value of type {value.Kind} could not be coerced to string");
             }
 
             var stringValue = (GraphQLScalarValue) value;

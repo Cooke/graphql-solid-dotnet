@@ -20,6 +20,7 @@ namespace Cooke.GraphQL.AutoTests.UnitTests
         private readonly DataHuman _leia;
         private readonly DataHuman _tarkin;
         private readonly DataDroid _threepio;
+        private Dictionary<string, DataHuman> _humans;
 
         public StarWarsData()
         {
@@ -86,7 +87,7 @@ namespace Cooke.GraphQL.AutoTests.UnitTests
             _threepio.Friends = new DataCharacter[] { _luke, _han, _leia, _artoo };
             _artoo.Friends = new DataCharacter[] { _luke, _han, _leia };
 
-            var humans = new Dictionary<string, DataCharacter>
+            _humans = new Dictionary<string, DataHuman>
             {
                 { _luke.Id, _luke },
                 { _vader.Id, _vader},
@@ -110,6 +111,11 @@ namespace Cooke.GraphQL.AutoTests.UnitTests
             }
 
             return _artoo;
+        }
+
+        public DataHuman GetHuman(string id)
+        {
+            return _humans.ContainsKey(id) ? _humans[id] : null;
         }
     }
 

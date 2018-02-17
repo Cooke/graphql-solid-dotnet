@@ -11,6 +11,14 @@ using Newtonsoft.Json.Linq;
 
 namespace Cooke.GraphQL
 {
+
+    public class QueryErrorException : Exception
+    {
+        public QueryErrorException(string message) : base(message)
+        {
+        }
+    }
+
     public class QueryExecutor
     {
         private readonly Schema _schema;
@@ -31,9 +39,14 @@ namespace Cooke.GraphQL
             _middlewares = options.MiddlewareTypes.Select(options.Resolver).Cast<IMiddleware>().ToList();
         }
 
-        public async Task<JObject> ExecuteAsync(string query)
+        public Task<JObject> ExecuteRequestAsync(string queryDocument)
         {
-            if (string.IsNullOrWhiteSpace(query))
+            return ExecuteRequestAsync(queryDocument, null, null);
+        }
+
+        public async Task<JObject> ExecuteRequestAsync(string documentSource, string operationName, JObject variableValues)
+        {
+            if (string.IsNullOrWhiteSpace(documentSource))
             {
                 return new JObject
                 {
@@ -44,15 +57,17 @@ namespace Cooke.GraphQL
 
             var lexer = new Lexer();
             var parser = new Parser(lexer);
-            var ast = parser.Parse(new Source(query));
+            var document = parser.Parse(new Source(documentSource));
 
-            var firstOperationDefinition = ast.Definitions.OfType<GraphQLOperationDefinition>().Single();
-            var fragmentDefinitions = ast.Definitions.OfType<GraphQLFragmentDefinition>().ToDictionary(x => x.Name.Value);
+            var fragmentDefinitions = document.Definitions.OfType<GraphQLFragmentDefinition>().ToDictionary(x => x.Name.Value);
+
+            var operation = GetOperation(document, operationName);
+            var coercedVariableValues = CoerceVariableValues(operation, variableValues ?? new JObject());
 
             ObjectType initialObjectType;
             object initialObjectValue;
             bool exposeIntrospection = true;
-            switch (firstOperationDefinition.Operation)
+            switch (operation.Operation)
             {
                 case OperationType.Query:
                     initialObjectType = _schema.Query;
@@ -69,8 +84,8 @@ namespace Cooke.GraphQL
                     throw new NotSupportedException();
             }
 
-            var executionContext = new QueryExecutionContext(fragmentDefinitions);
-            var firstSelectionSet = firstOperationDefinition.SelectionSet;
+            var executionContext = new QueryExecutionContext(fragmentDefinitions, coercedVariableValues);
+            var firstSelectionSet = operation.SelectionSet;
             var data = await ExecuteSelectionSetAsync(executionContext, firstSelectionSet, initialObjectType, initialObjectValue, exposeIntrospection);
             
             var result = new JObject
@@ -89,6 +104,74 @@ namespace Cooke.GraphQL
             }
 
             return result;
+        }
+
+        private Dictionary<string, object> CoerceVariableValues(GraphQLOperationDefinition operation, JObject variableValues)
+        {
+            var coercedValues = new Dictionary<string, object>();
+            var variableDefinitions = operation.VariableDefinitions ?? Enumerable.Empty<GraphQLVariableDefinition>();
+            foreach (var variableDefinition in variableDefinitions)
+            {
+                var variableName = variableDefinition.Variable.Name.Value;
+                var variableType = ParseType(variableDefinition.Type);
+
+                if (!variableValues.TryGetValue(variableName, out JToken value))
+                {
+                    if (variableType.Kind == __TypeKind.Non_Null && variableDefinition.DefaultValue == null)
+                    {
+                        throw new QueryErrorException($"Non nullable variable '{variableName}' is missing a value.");
+                    }
+                    else
+                    {
+                        coercedValues[variableName] = variableDefinition.DefaultValue;
+                    }
+                }
+                else
+                {
+                    coercedValues[variableName] = variableType.CoerceInputVariableValue(value);
+                }
+            }
+
+            return coercedValues;
+        }
+
+        private BaseType ParseType(GraphQLType variableDefinitionType)
+        {
+            switch (variableDefinitionType)
+            {
+                case GraphQLListType graphQLListType:
+                    return new ListType { ItemType = ParseType(graphQLListType.Type)}; ;
+                case GraphQLNamedType graphQLNamedType:
+                    return _schema.Types.First(x => x.Name == graphQLNamedType.Name.Value);
+                case GraphQLNonNullType graphQLNonNullType:
+                    return new NonNullType { ItemType = ParseType(graphQLNonNullType.Type) };
+                    default:
+                        throw new NotSupportedException();
+            }
+        }
+
+        private GraphQLOperationDefinition GetOperation(GraphQLDocument document, string operationName)
+        {
+            var operationDefinitions = document.Definitions.OfType<GraphQLOperationDefinition>().ToArray();
+            if (operationName == null)
+            {
+                if (operationDefinitions.Length != 1)
+                {
+                    throw new QueryErrorException(
+                        "An operation name is required since there are several operations defined in the query document.");
+                }
+
+                return operationDefinitions.First();
+            }
+            else
+            {
+                var selectedOperation = operationDefinitions.FirstOrDefault(x => x.Name.Value == operationName);
+                if (selectedOperation == null)
+                {
+                    throw new QueryErrorException($"No operation named '{operationName}' exists in the query document.");
+                }
+                return selectedOperation;
+            }
         }
 
         private async Task<JToken> ExecuteSelectionSetAsync(QueryExecutionContext executionContext, GraphQLSelectionSet ast, ComplexBaseType objectType, object objectValue, bool exposeIntrospection = false)
@@ -210,7 +293,7 @@ namespace Cooke.GraphQL
 
         private async Task<JToken> ExecuteFieldAsync(QueryExecutionContext executionContext, ComplexBaseType objectType, object objectValue, BaseType fieldType, GraphQLFieldSelection field)
         {
-            var argumentValues = CoerceArgumentValues(objectType, field);
+            var argumentValues = CoerceArgumentValues(objectType, field, executionContext);
 
             object resolvedValue = null;
 
@@ -241,7 +324,7 @@ namespace Cooke.GraphQL
             return await CompleteValue(executionContext, field, fieldType, resolvedValue);
         }
 
-        private static Dictionary<string, object> CoerceArgumentValues(ComplexBaseType objectType, GraphQLFieldSelection field)
+        private static Dictionary<string, object> CoerceArgumentValues(ComplexBaseType objectType, GraphQLFieldSelection field, QueryExecutionContext executionContext)
         {
             var coercedValues = new Dictionary<string, object>();
             var argumentValues = field.Arguments.ToDictionary(x => x.Name.Value);
@@ -251,18 +334,47 @@ namespace Cooke.GraphQL
             {
                 var argumentName = argumentDefinition.Name;
                 var argumentType = argumentDefinition.Type;
-                if (!argumentValues.ContainsKey(argumentName))
+                var defaultValue = argumentDefinition.DefaultValue;
+                if (argumentValues.ContainsKey(argumentName) && argumentValues[argumentName].Value is GraphQLVariable variable)
+                {
+                    var variableName = variable.Name.Value;
+                    if (executionContext.Variables.ContainsKey(variableName))
+                    {
+                        coercedValues[argumentName] = executionContext.Variables[variableName];
+                    }
+                    else if (argumentDefinition.HasDefaultValue)
+                    {
+                        coercedValues[argumentName] = defaultValue;
+                    }
+                    else if (argumentType.Kind == __TypeKind.Non_Null)
+                    {
+                        throw new FieldErrorException(
+                            $"Variable '{variableName}' must be given a value since it cannot be null");
+                    }
+                }
+                else if (!argumentValues.ContainsKey(argumentName))
                 {
                     if (argumentDefinition.HasDefaultValue)
                     {
-                        coercedValues[argumentName] = argumentDefinition.DefaultValue;
+                        coercedValues[argumentName] = defaultValue;
                     }
-                    // TODO check null
+                    else if (argumentType.Kind == __TypeKind.Non_Null)
+                    {
+                        throw new FieldErrorException(
+                            $"Argument '{argumentName}' must be given a value since it cannot be null");
+                    }
                 }
                 else
                 {
-                    var value = argumentValues[argumentName];
-                    coercedValues[argumentName] = CoerceInputValue(value, argumentType);
+                    try
+                    {
+                        var coercedValue = CoerceInputValue(argumentValues[argumentName], argumentType);
+                        coercedValues[argumentName] = coercedValue;
+                    }
+                    catch (TypeCoercionException)
+                    {
+                        throw new FieldErrorException($"Input coercion failed for argument '{argumentName}'");
+                    }
                 }
             }
 
@@ -271,7 +383,7 @@ namespace Cooke.GraphQL
 
         private static object CoerceInputValue(GraphQLArgument value, BaseType argumentType)
         {
-            return argumentType.CoerceInputValue(value.Value);
+            return argumentType.CoerceInputLiteralValue(value.Value);
         }
 
         private async Task<JToken> CompleteValue(QueryExecutionContext executionContext, GraphQLFieldSelection field, BaseType fieldType, object result)

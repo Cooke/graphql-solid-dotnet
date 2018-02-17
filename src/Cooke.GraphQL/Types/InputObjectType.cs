@@ -4,6 +4,7 @@ using System.Reflection;
 using Cooke.GraphQL.Annotations;
 using Cooke.GraphQL.Introspection;
 using GraphQLParser.AST;
+using Newtonsoft.Json.Linq;
 
 namespace Cooke.GraphQL.Types
 {
@@ -25,11 +26,16 @@ namespace Cooke.GraphQL.Types
             return Fields[fieldName].Type;
         }
 
-        public override object CoerceInputValue(GraphQLValue value)
+        public override object CoerceInputLiteralValue(GraphQLValue value)
         {
+            if (value == null)
+            {
+                return null;
+            }
+
             if (!(value is GraphQLObjectValue objectValue))
             {
-                throw new TypeCoercionException("Cannot coerce the given input kind to an input object type", value.Location);
+                throw new TypeCoercionException("Cannot coerce the given input kind to an input object type");
             }
 
             var instance = Activator.CreateInstance(ClrType);
@@ -37,16 +43,33 @@ namespace Cooke.GraphQL.Types
             {
                 if (!Fields.ContainsKey(inputField.Name.Value))
                 {
-                    throw new TypeCoercionException("The given field is not valid", inputField.Name.Location);
+                    throw new TypeCoercionException("The given field is not valid");
                 }
 
                 var fieldInfo = Fields[inputField.Name.Value];
-                fieldInfo.Set(instance, fieldInfo.Type.CoerceInputValue(inputField.Value));
+                fieldInfo.Set(instance, fieldInfo.Type.CoerceInputLiteralValue(inputField.Value));
             }
 
             // TODO make sure all non-null field have been set
 
             return instance;
+        }
+
+        public override object CoerceInputVariableValue(JToken value)
+        {
+            if (value == null)
+            {
+                return null;
+            }
+
+            if (value.Type != JTokenType.Object)
+            {
+                throw new TypeCoercionException($"Cannot coerce the input variable value of type {value.Type} to an input object type.");
+            }
+
+            // TODO make sure all non-null field have been set
+
+            return value.ToObject(ClrType);
         }
 
         public override string Name { get; }

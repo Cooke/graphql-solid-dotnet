@@ -33,16 +33,44 @@ namespace Cooke.GraphQL.Types
 
         public IEnumerable<EnumValue> EnumValues { get; }
 
-        public override object CoerceInputValue(GraphQLValue value)
+        public override object CoerceInputLiteralValue(GraphQLValue value)
         {
+            if (value == null)
+            {
+                return null;
+            }
+
             if (value.Kind != ASTNodeKind.EnumValue)
             {
                 throw new TypeCoercionException(
-                    $"Input value of type {value.Kind} could not be coerced to int", value.Location);
+                    $"Input value of type {value.Kind} could not be coerced to int");
             }
 
             var scalarValue = (GraphQLScalarValue) value;
             return Enum.Parse(_enumType, scalarValue.Value, true);
+        }
+
+        public override object CoerceInputVariableValue(JToken value)
+        {
+            if (value == null)
+            {
+                return null;
+            }
+
+            if (value.Type != JTokenType.String)
+            {
+                throw new TypeCoercionException(
+                    $"Input variable value of type {value.Type} could not be coerced to an enum value.");
+            }
+
+            try
+            {
+                return Enum.Parse(_enumType, value.Value<string>(), true);
+            }
+            catch (Exception)
+            {
+                throw new TypeCoercionException($"Input variable value could not be coerced to a defined enum value.");
+            }
         }
 
         public override string Name { get; }
