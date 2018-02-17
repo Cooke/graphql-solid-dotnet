@@ -1,7 +1,14 @@
 # GraphQL for .NET 
-This is a convention based .NET library for building [GraphQL](http://graphql.org) endpoints. It is delivered with a middleware for ASP.NET Core and supports authorization out of the box.
+This is a convention based .NET standard library for building [GraphQL](http://graphql.org) endpoints. It is delivered with a middleware for ASP.NET Core and supports ASP.NET Core authorization.
 
-This library is a proof of concept and its existence is [motivated below](#motivation). It is intended to spark a discussion at [graphql-dotnet](https://github.com/graphql-dotnet/graphql-dotnet/issues/442)
+This library is a work in progress and is not yet production ready. Key missing features are:
+
+ * Validation support
+ * Directive support
+ * Union support
+ * A few introspection fields are still missing (GraphiQL works though)
+ * Support for documentation attributes (description, deprecated, ...)
+ * Support for execution context data in field resolvers together with resolver injection.
 
 ## Installation
 
@@ -63,7 +70,7 @@ public class Startup
 ```
 
 ## Motivation (for another .NET GraphQL Library) <a name="motivation"></a>
-The creation of this library is motivated in the context of a comparison with the https://github.com/graphql-dotnet/graphql-dotnet library. The biggest motivation is to trigger a discussion within the community of graphql-dotnet and hopefully make it pivot according to the bullets below.  
+The creation of this library is motivated in the context of a comparison with the https://github.com/graphql-dotnet/graphql-dotnet library. The key driving bullets are as follows. 
 
 A great GraphQL Library should:
 
