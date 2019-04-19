@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Reflection;
 using System.Threading.Tasks;
 using Cooke.GraphQL.Annotations;
@@ -9,37 +10,36 @@ using Cooke.GraphQL.Types;
 
 namespace Cooke.GraphQL
 {
-    public delegate FieldDefinition FieldEnhancer(FieldDefinition fieldInfo);
+    public delegate GqlFieldInfo FieldEnhancer(GqlFieldInfo fieldInfo);
 
     public class SchemaBuilder
     {
         private readonly SchemaBuilderOptions _options;
         private readonly IList<FieldEnhancer> _fieldEnhancers = new List<FieldEnhancer>();
-        private readonly Dictionary<TypeCacheKey, TypeDefinition> _types = new Dictionary<TypeCacheKey, TypeDefinition>();
-        private Type _queryType;
-        private Type _mutationType;
+        private readonly Dictionary<string, TypeBuilder> _types = new Dictionary<string, TypeBuilder>();
+        private TypeBuilder _queryType;
+        private TypeBuilder _mutationType;
 
         public SchemaBuilder(SchemaBuilderOptions options)
         {
             _options = options;
-
-            // Default attrubte metadata enhancer
-            this.UseAttributeMetadata();
         }
 
         public SchemaBuilder() : this(new SchemaBuilderOptions())
         {
         }
 
+        public SchemaBuilderOptions Options => _options;
+
         public SchemaBuilder Query<T>()
         {
-            _queryType = typeof(T);
+            _queryType = Type<T>("Query");
             return this;
         }
 
         public SchemaBuilder UseMutation<T>()
         {
-            _mutationType = typeof(T);
+            _mutationType = Type<T>("Mutation");
             return this;
         }
 
@@ -57,11 +57,12 @@ namespace Cooke.GraphQL
         }
 
         // TODO change to data driven type creation and add possibility to register custom type factories
-        private TypeDefinition CreateType(Type clrType, bool withinInputType = false)
+        private TypeBuilder<T> CreateType<T>(bool withinInputType = false)
         {
+            var clrType = typeof(T);
+            var name = _options.TypeNamingStrategy.ResolveTypeName(clrType);
             clrType = TypeHelper.UnwrapTask(clrType);
 
-            var typeCacheKey = new TypeCacheKey { ClrType = clrType, IsInput = withinInputType && !TypeHelper.IsList(clrType) && clrType.GetTypeInfo().IsClass };
             if (_types.ContainsKey(typeCacheKey))
             {
                 return _types[typeCacheKey];
@@ -105,7 +106,7 @@ namespace Cooke.GraphQL
             if (clrType.GetTypeInfo().IsClass)
             {
                 var baseType = clrType.GetTypeInfo().BaseType;
-                TypeDefinition baseGraphType = null;
+                GqlType baseGraphType = null;
                 if (baseType != typeof(object))
                 {
                     baseGraphType = CreateType(baseType, withinInputType);
@@ -113,7 +114,7 @@ namespace Cooke.GraphQL
 
                 if (!withinInputType)
                 {
-                    TypeDefinition resultGraphType;
+                    GqlType resultGraphType;
                     if (clrType.GetTypeInfo().IsAbstract)
                     {
                         var interfaceGraphType = new InterfaceType(clrType);
@@ -153,7 +154,7 @@ namespace Cooke.GraphQL
             throw new NotSupportedException($"The given CLR type '{clrType}' is currently not supported.");
         }
 
-        private Dictionary<string, FieldDefinition> CreateFields(Type clrType)
+        private Dictionary<string, GqlFieldInfo> CreateFields(Type clrType)
         {
             var propertyInfos = clrType.GetRuntimeProperties().Where(x => x.GetMethod.IsPublic && !x.GetMethod.IsStatic);
             var fields = propertyInfos.Select(x => _fieldEnhancers.Aggregate(CreateFieldInfo(x), (f, e) => e(f)));
@@ -171,7 +172,7 @@ namespace Cooke.GraphQL
             return fields.ToDictionary(x => x.Name);
         }
 
-        private FieldDefinition CreateFieldInfo(PropertyInfo propertyInfo)
+        private GqlFieldInfo CreateFieldInfo(PropertyInfo propertyInfo)
         {
             var type = CreateType(propertyInfo.PropertyType);
             FieldResolver resolver = async context =>
@@ -198,13 +199,13 @@ namespace Cooke.GraphQL
                 };
             }
 
-            var graphFieldInfo = new FieldDefinition(_options.FieldNamingStrategy.ResolveFieldName(propertyInfo), type, resolver, new FieldArgumentDescriptor[0]);
+            var graphFieldInfo = new GqlFieldInfo(_options.FieldNamingStrategy.ResolveFieldName(propertyInfo), type, resolver, new FieldArgumentDescriptor[0]);
             return graphFieldInfo
                 .WithMetadataField(propertyInfo)
                 .WithMetadataField((MemberInfo)propertyInfo);
         }
 
-        private FieldDefinition CreateFieldInfo(MethodInfo methodInfo, FieldResolver next)
+        private GqlFieldInfo CreateFieldInfo(MethodInfo methodInfo, FieldResolver next)
         {
             var type = CreateType(methodInfo.ReturnType);
             var skipParameterTypes = new[] { typeof(FieldResolveContext), typeof(FieldResolver) };
@@ -222,7 +223,7 @@ namespace Cooke.GraphQL
                 return await UnwrapResult(result);
             }
 
-            return new FieldDefinition(fieldName, type, Resolver, fieldParameters)
+            return new GqlFieldInfo(fieldName, type, Resolver, fieldParameters)
                 .WithMetadataField(methodInfo)
                 .WithMetadataField((MemberInfo)methodInfo);
         }
@@ -264,48 +265,76 @@ namespace Cooke.GraphQL
             return result;
         }
 
-        private struct TypeCacheKey
+        public TypeBuilder Type(string name, Action<TypeBuilder> typeBuilderAction)
         {
-            public Type ClrType { get; set; }
-
-            public bool IsInput { get; set; }
-
-            private bool Equals(TypeCacheKey other)
+            if (_types.TryGetValue(name, out var typeBuilder))
             {
-                return ClrType == other.ClrType && IsInput == other.IsInput;
+                return typeBuilder;
             }
 
-            public override bool Equals(object obj)
-            {
-                if (ReferenceEquals(null, obj)) return false;
-                return obj is TypeCacheKey && Equals((TypeCacheKey)obj);
-            }
-
-            public override int GetHashCode()
-            {
-                unchecked
-                {
-                    return (ClrType.GetHashCode() * 397) ^ IsInput.GetHashCode();
-                }
-            }
+            typeBuilder = new TypeBuilder(name);
+            _types[name] = typeBuilder;
+            typeBuilderAction?.Invoke(typeBuilder);
+            return typeBuilder;
         }
 
-        public void Type<T>(Action<TypeBuilder<T>> typeBuilder)
+        public TypeBuilder<T> Type<T>(string name, Action<TypeBuilder<T>> typeBuilderAction)
         {
-            var builder = new TypeBuilder<T>(_options.TypeNamingStrategy.ResolveTypeName(typeof(T)), typeof(T));
+            if (_types.TryGetValue(name, out var builder))
+            {
+                if (!(builder is TypeBuilder<T> typedBuilder))
+                {
+                    throw new InvalidOperationException("The given type name has already been associated with another CLR type");
+                }
+
+                return typedBuilder;
+            }
+
+            var typeBuilder = new TypeBuilder<T>(name, this);
+            _types[name] = typeBuilder;
+            typeBuilderAction?.Invoke(typeBuilder);
+            return typeBuilder;
+        }
+
+        public TypeBuilder<T> Type<T>(string name)
+        {
+            return Type<T>(name, null);
+        }
+
+        public TypeBuilder<T> Type<T>()
+        {
+            var name = _options.TypeNamingStrategy.ResolveTypeName(typeof(T));
+            return Type<T>(name, null);
         }
     }
 
-    public class TypeBuilder<T>
+    public class TypeBuilder<T> : TypeBuilder
     {
-        public string Name { get; }
+        private readonly SchemaBuilder _schemaBuilder;
 
-        public Type ClrType { get; }
+        public TypeBuilder(string name, SchemaBuilder schemaBuilder) : base(name)
+        {
+            _schemaBuilder = schemaBuilder;
+        }
 
-        public TypeBuilder(string name, Type clrType)
+        public void Field<TReturn>(Expression<Func<T, TReturn>> expression)
+        {
+            if (!(expression.Body is MemberExpression memberExpression))
+            {
+                throw new ArgumentException("Only expressions starting with a member expression is valid.");
+            }
+
+            var fieldName = _schemaBuilder.Options.FieldNamingStrategy.ResolveFieldName(memberExpression.Member);
+        }
+    }
+
+    public class TypeBuilder
+    {
+        public TypeBuilder(string name)
         {
             Name = name;
-            ClrType = clrType;
         }
+
+        public string Name { get; }
     }
 }

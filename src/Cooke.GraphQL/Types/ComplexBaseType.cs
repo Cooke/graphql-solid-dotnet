@@ -5,27 +5,24 @@ using Cooke.GraphQL.Annotations;
 
 namespace Cooke.GraphQL.Types
 {
-    public abstract class ComplexBaseType : TypeDefinition
+    public abstract class ComplexBaseType : GqlType
     {
-        protected ComplexBaseType(Type clrType)
+        protected ComplexBaseType(string name, Dictionary<string, GqlFieldInfo> fields)
         {
-            ClrType = clrType;
-            var typeNameAttribute = clrType.GetTypeInfo().GetCustomAttribute<TypeName>();
-            Name = typeNameAttribute?.Name ?? clrType.Name;
+            Name = name;
+            Fields = fields;
         }
 
-        public Dictionary<string, FieldDefinition> Fields { get; internal set; }
-
-        internal Type ClrType { get; }
+        public Dictionary<string, GqlFieldInfo> Fields { get; }
 
         public override string Name { get; }
 
-        public FieldDefinition GetFieldInfo(string fieldName)
+        public GqlFieldInfo GetFieldInfo(string fieldName)
         {
             return Fields[fieldName];
         }
 
-        public TypeDefinition GetFieldType(string fieldName)
+        public GqlType GetFieldType(string fieldName)
         {
             return Fields[fieldName].Type;
         }

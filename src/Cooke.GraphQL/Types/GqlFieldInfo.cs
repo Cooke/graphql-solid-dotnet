@@ -5,11 +5,11 @@ using System.Threading.Tasks;
 
 namespace Cooke.GraphQL.Types
 {
-    public class FieldDefinition
+    public class GqlFieldInfo
     {
         private readonly Dictionary<object, object> _metadata;
 
-        public FieldDefinition(string name, TypeDefinition type, FieldResolver resolver, FieldArgumentDescriptor[] arguments, Dictionary<object, object> metadata = null)
+        public GqlFieldInfo(string name, GqlType type, FieldResolver resolver, FieldArgumentDescriptor[] arguments, Dictionary<object, object> metadata = null)
         {
             Name = name;
             Type = type;
@@ -20,7 +20,7 @@ namespace Cooke.GraphQL.Types
 
         public string Name { get; }
 
-        public TypeDefinition Type { get; }
+        public GqlType Type { get; }
 
         public FieldResolver Resolver { get; }
 
@@ -32,11 +32,11 @@ namespace Cooke.GraphQL.Types
             return (T) (_metadata.ContainsKey(key) ? _metadata[key] : null);
         }
 
-        public FieldDefinition WithMetadataField<T>(T value)
+        public GqlFieldInfo WithMetadataField<T>(T value)
         {
             var newDictionary = _metadata.ToDictionary(x => x.Key, x => x.Value);
             newDictionary[typeof(T)] = value;
-            return new FieldDefinition(Name, Type, Resolver, Arguments, newDictionary);
+            return new GqlFieldInfo(Name, Type, Resolver, Arguments, newDictionary);
         }
     }
 

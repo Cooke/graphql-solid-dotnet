@@ -8,9 +8,9 @@ namespace Cooke.GraphQL.Types
 
         public object DefaultValue { get; }
 
-        public TypeDefinition Type { get; }
+        public GqlType Type { get; }
 
-        public FieldArgumentDescriptor(TypeDefinition type, string name, bool hasDefaultValue, object defaultValue)
+        public FieldArgumentDescriptor(GqlType type, string name, bool hasDefaultValue, object defaultValue)
         {
             Type = type;
             Name = name;

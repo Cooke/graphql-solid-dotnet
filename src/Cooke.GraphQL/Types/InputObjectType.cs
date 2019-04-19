@@ -8,20 +8,16 @@ using Newtonsoft.Json.Linq;
 
 namespace Cooke.GraphQL.Types
 {
-    public sealed class InputObjectType : TypeDefinition
+    public sealed class InputObjectType : GqlType
     {
-        public InputObjectType(Type clrType)
+        public InputObjectType(string name)
         {
-            ClrType = clrType;
-            var typeNameAttribute = clrType.GetTypeInfo().GetCustomAttribute<TypeName>();
-            Name = typeNameAttribute?.Name ?? clrType.Name;
+            Name = name;
         }
 
         public Dictionary<string, InputFieldDescriptor> Fields { get; internal set; }
 
-        public Type ClrType { get; }
-
-        public TypeDefinition GetFieldType(string fieldName)
+        public GqlType GetFieldType(string fieldName)
         {
             return Fields[fieldName].Type;
         }
@@ -38,6 +34,7 @@ namespace Cooke.GraphQL.Types
                 throw new TypeCoercionException("Cannot coerce the given input kind to an input object type");
             }
 
+            // TODO
             var instance = Activator.CreateInstance(ClrType);
             foreach (var inputField in objectValue.Fields)
             {
@@ -68,7 +65,7 @@ namespace Cooke.GraphQL.Types
             }
 
             // TODO make sure all non-null field have been set
-
+            // TODO 
             return value.ToObject(ClrType);
         }
 

@@ -6,7 +6,7 @@ namespace Cooke.GraphQL.Types
     {
         private readonly Action<object, object> _setter;
 
-        public InputFieldDescriptor(string name, TypeDefinition type, Action<object, object> setter)
+        public InputFieldDescriptor(string name, GqlType type, Action<object, object> setter)
         {
             _setter = setter;
             Name = name;
@@ -15,7 +15,7 @@ namespace Cooke.GraphQL.Types
 
         public string Name { get; }
 
-        public TypeDefinition Type { get; }
+        public GqlType Type { get; }
 
         public void Set(object instance, object value)
         {

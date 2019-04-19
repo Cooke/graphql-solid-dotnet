@@ -12,6 +12,7 @@ namespace Cooke.GraphQL.AspNetCore
         public static IApplicationBuilder UseGraphQL<TQuery>(this IApplicationBuilder builder)
         {
             var schemaBuilder = new SchemaBuilder()
+                .UseAttributeMetadata()
                 .Query<TQuery>();
             var schema = schemaBuilder.Build();
 

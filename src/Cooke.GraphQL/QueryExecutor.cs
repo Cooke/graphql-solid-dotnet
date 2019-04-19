@@ -44,7 +44,7 @@ namespace Cooke.GraphQL
             return ExecuteRequestAsync(queryDocument, null, null);
         }
 
-        public async Task<JObject> ExecuteRequestAsync(string documentSource, string operationName, JObject variableValues)
+        public async Task<JObject> ExecuteRequestAsync(string documentSource, string operationName, JObject variableValues, object root = null)
         {
             if (string.IsNullOrWhiteSpace(documentSource))
             {
@@ -65,17 +65,14 @@ namespace Cooke.GraphQL
             var coercedVariableValues = CoerceVariableValues(operation, variableValues ?? new JObject());
 
             ObjectType initialObjectType;
-            object initialObjectValue;
             bool exposeIntrospection = true;
             switch (operation.Operation)
             {
                 case OperationType.Query:
                     initialObjectType = _schema.Query;
-                    initialObjectValue = _options.Resolver(_schema.Query.ClrType);
                     break;
                 case OperationType.Mutation:
                     initialObjectType = _schema.Mutation;
-                    initialObjectValue = _options.Resolver(_schema.Mutation.ClrType);
                     exposeIntrospection = false;
                     break;
                 case OperationType.Subscription:
@@ -86,7 +83,7 @@ namespace Cooke.GraphQL
 
             var executionContext = new QueryExecutionContext(fragmentDefinitions, coercedVariableValues);
             var firstSelectionSet = operation.SelectionSet;
-            var data = await ExecuteSelectionSetAsync(executionContext, firstSelectionSet, initialObjectType, initialObjectValue, exposeIntrospection);
+            var data = await ExecuteSelectionSetAsync(executionContext, firstSelectionSet, initialObjectType, root, exposeIntrospection);
             
             var result = new JObject
             {
@@ -135,17 +132,20 @@ namespace Cooke.GraphQL
             return coercedValues;
         }
 
-        private TypeDefinition ParseType(GraphQLType variableDefinitionType)
+        private GqlType ParseType(GraphQLType variableDefinitionType)
         {
             switch (variableDefinitionType)
             {
                 case GraphQLListType graphQLListType:
                     return new ListType { ItemType = ParseType(graphQLListType.Type)}; ;
+
                 case GraphQLNamedType graphQLNamedType:
-                    return _schema.Types.First(x => x.Name == graphQLNamedType.Name.Value);
+                    return _schema.GetType(graphQLNamedType.Name.Value);
+
                 case GraphQLNonNullType graphQLNonNullType:
-                    return new NonNullType { ItemType = ParseType(graphQLNonNullType.Type) };
-                    default:
+                    return new NonNullType(ParseType(graphQLNonNullType.Type));
+
+                default:
                         throw new NotSupportedException();
             }
         }
@@ -205,7 +205,7 @@ namespace Cooke.GraphQL
             return result;
         }
 
-        private Dictionary<string, List<GraphQLFieldSelection>> CollectFields(TypeDefinition objectType, QueryExecutionContext context, IEnumerable<ASTNode> selections, HashSet<string> visitedFragments = null)
+        private Dictionary<string, List<GraphQLFieldSelection>> CollectFields(GqlType objectType, QueryExecutionContext context, IEnumerable<ASTNode> selections, HashSet<string> visitedFragments = null)
         {
             visitedFragments = visitedFragments ?? new HashSet<string>();
             var groupedFields = new Dictionary<string, List<GraphQLFieldSelection>>();
@@ -240,7 +240,7 @@ namespace Cooke.GraphQL
 
                     var fragment = context.FragmentDefinitions[fragmentSpreadName];
                     var fragmentTypeName = fragment.TypeCondition.Name.Value;
-                    var fragmentType = _schema.Types.Concat(_introspectionSchema.Types).First(x => x.Name == fragmentTypeName);
+                    var fragmentType = _schema.GetType(fragmentTypeName) ?? _introspectionSchema.GetType(fragmentTypeName);
                     if (!DoesFragmentTypeApply(objectType, fragmentType))
                     {
                         continue;
@@ -271,7 +271,7 @@ namespace Cooke.GraphQL
             // var groupedFields = selections.Cast<GraphQLFieldSelection>().GroupBy(x => x.Alias?.Value ?? x.Name.Value).ToDictionary(x => x.Key, x => x.ToList());
         }
 
-        private static bool DoesFragmentTypeApply(TypeDefinition objectType, TypeDefinition fragmentType)
+        private static bool DoesFragmentTypeApply(GqlType objectType, GqlType fragmentType)
         {
             if (fragmentType.Kind == __TypeKind.Object)
             {
@@ -291,7 +291,7 @@ namespace Cooke.GraphQL
             Task<object> Resolve(FieldResolveContext fieldContext, FieldResolver next);
         }
 
-        private async Task<JToken> ExecuteFieldAsync(QueryExecutionContext executionContext, ComplexBaseType objectType, object objectValue, TypeDefinition fieldType, GraphQLFieldSelection field)
+        private async Task<JToken> ExecuteFieldAsync(QueryExecutionContext executionContext, ComplexBaseType objectType, object objectValue, GqlType fieldType, GraphQLFieldSelection field)
         {
             var argumentValues = CoerceArgumentValues(objectType, field, executionContext);
 
@@ -381,12 +381,12 @@ namespace Cooke.GraphQL
             return coercedValues;
         }
 
-        private static object CoerceInputValue(GraphQLArgument value, TypeDefinition argumentType)
+        private static object CoerceInputValue(GraphQLArgument value, GqlType argumentType)
         {
             return argumentType.CoerceInputLiteralValue(value.Value);
         }
 
-        private async Task<JToken> CompleteValue(QueryExecutionContext executionContext, GraphQLFieldSelection field, TypeDefinition fieldType, object result)
+        private async Task<JToken> CompleteValue(QueryExecutionContext executionContext, GraphQLFieldSelection field, GqlType fieldType, object result)
         {
             if (fieldType is NonNullType nonNullGraphType)
             {

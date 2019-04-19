@@ -5,12 +5,11 @@ namespace Cooke.GraphQL.Introspection
 {
     public class __TypeProvider
     {
-        private readonly Dictionary<TypeDefinition, __Type> _types = new Dictionary<TypeDefinition, __Type>();
+        private readonly Dictionary<GqlType, __Type> _types = new Dictionary<GqlType, __Type>();
 
-        public __Type GetOrCreateType(TypeDefinition type)
+        public __Type GetOrCreateType(GqlType type)
         {
-            __Type returnType;
-            if (_types.TryGetValue(type, out returnType))
+            if (_types.TryGetValue(type, out var returnType))
             {
                 return returnType;
             }
@@ -19,7 +18,7 @@ namespace Cooke.GraphQL.Introspection
             return returnType;
         }
 
-        public void RegisterType(TypeDefinition type, __Type introType)
+        public void RegisterType(GqlType type, __Type introType)
         {
             _types[type] = introType;
         }

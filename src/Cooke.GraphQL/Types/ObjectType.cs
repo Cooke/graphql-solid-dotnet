@@ -8,11 +8,11 @@ namespace Cooke.GraphQL.Types
 {
     public sealed class ObjectType : ComplexBaseType
     {
-        public ObjectType(Type clrType) : base(clrType)
+        public ObjectType(string name) : base(name)
         {
         }
 
-        public IEnumerable<InterfaceType> Interfaces { get; set; }
+        public IEnumerable<InterfaceType> Interfaces { get; }
 
         public override __TypeKind Kind => __TypeKind.Object;
 

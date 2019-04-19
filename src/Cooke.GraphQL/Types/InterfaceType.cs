@@ -7,7 +7,7 @@ namespace Cooke.GraphQL.Types
 {
     public sealed class InterfaceType : ComplexBaseType
     {
-        public InterfaceType(Type clrType) : base(clrType)
+        public InterfaceType(string name) : base(name)
         {
         }
 
