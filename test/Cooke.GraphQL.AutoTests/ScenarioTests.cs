@@ -10,7 +10,7 @@ namespace Cooke.GraphQL.AutoTests
         {
             var builder = new SchemaBuilder();
             builder.Query<Query>();
-            builder.Type<TestUser>(type =>
+            builder.ObjectType<TestUser>(type =>
             {
                 type.Field(x => x.Friends);
             });

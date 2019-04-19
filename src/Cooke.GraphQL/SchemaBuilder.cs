@@ -16,13 +16,15 @@ namespace Cooke.GraphQL
     {
         private readonly SchemaBuilderOptions _options;
         private readonly IList<FieldEnhancer> _fieldEnhancers = new List<FieldEnhancer>();
-        private readonly Dictionary<string, TypeBuilder> _types = new Dictionary<string, TypeBuilder>();
-        private TypeBuilder _queryType;
-        private TypeBuilder _mutationType;
+        private readonly Dictionary<string, GqlTypeBuilder> _types;
+        private GqlTypeBuilder _queryType;
+        private GqlTypeBuilder _mutationType;
 
         public SchemaBuilder(SchemaBuilderOptions options)
         {
             _options = options;
+
+            _types = StandardScalars.All.ToDictionary(x => x.Name, x => (GqlTypeBuilder) new StandardGqlTypeBuilder(x));
         }
 
         public SchemaBuilder() : this(new SchemaBuilderOptions())
@@ -33,13 +35,13 @@ namespace Cooke.GraphQL
 
         public SchemaBuilder Query<T>()
         {
-            _queryType = Type<T>("Query");
+            _queryType = ObjectType<T>("Query");
             return this;
         }
 
         public SchemaBuilder UseMutation<T>()
         {
-            _mutationType = Type<T>("Mutation");
+            _mutationType = ObjectType<T>("Mutation");
             return this;
         }
 
@@ -51,13 +53,13 @@ namespace Cooke.GraphQL
 
         public Schema Build()
         {
-            var graphQueryType = CreateType(_queryType);
-            var graphMutationType = _mutationType != null ? CreateType(_mutationType) : null;
-            return new Schema((ObjectType) graphQueryType, (ObjectType)graphMutationType, _types.Values);
+            var graphQueryType = _queryType.Build();
+            var graphMutationType = _mutationType?.Build();
+            return new Schema((GqlObjectType) graphQueryType, (GqlObjectType)graphMutationType, _types.Values);
         }
 
         // TODO change to data driven type creation and add possibility to register custom type factories
-        private TypeBuilder<T> CreateType<T>(bool withinInputType = false)
+        private GqlObjectTypeBuilder<T> CreateType<T>(bool withinInputType = false)
         {
             var clrType = typeof(T);
             var name = _options.TypeNamingStrategy.ResolveTypeName(clrType);
@@ -88,7 +90,7 @@ namespace Cooke.GraphQL
 
             if (clrType.GetTypeInfo().IsEnum)
             {
-                var enumType = new EnumType(Enum.GetNames(clrType).Select(x => new EnumValue(x)), clrType);
+                var enumType = new GqlEnumType(Enum.GetNames(clrType).Select(x => new EnumValue(x)), clrType);
                 _types[typeCacheKey] = enumType;
                 return enumType;
             }
@@ -124,7 +126,7 @@ namespace Cooke.GraphQL
                     }
                     else
                     {
-                        var objectGraphType = new ObjectType(clrType);
+                        var objectGraphType = new GqlObjectType(clrType);
                         _types[typeCacheKey] = objectGraphType;
                         objectGraphType.Fields = CreateFields(clrType);
 
@@ -265,24 +267,24 @@ namespace Cooke.GraphQL
             return result;
         }
 
-        public TypeBuilder Type(string name, Action<TypeBuilder> typeBuilderAction)
+        public GqlTypeBuilder ObjectType(string name, Action<GqlTypeBuilder> typeBuilderAction)
         {
             if (_types.TryGetValue(name, out var typeBuilder))
             {
                 return typeBuilder;
             }
 
-            typeBuilder = new TypeBuilder(name);
+            typeBuilder = new GqlTypeBuilder(name);
             _types[name] = typeBuilder;
             typeBuilderAction?.Invoke(typeBuilder);
             return typeBuilder;
         }
 
-        public TypeBuilder<T> Type<T>(string name, Action<TypeBuilder<T>> typeBuilderAction)
+        public GqlObjectTypeBuilder<T> ObjectType<T>(string name, Action<GqlObjectTypeBuilder<T>> typeBuilderAction)
         {
             if (_types.TryGetValue(name, out var builder))
             {
-                if (!(builder is TypeBuilder<T> typedBuilder))
+                if (!(builder is GqlObjectTypeBuilder<T> typedBuilder))
                 {
                     throw new InvalidOperationException("The given type name has already been associated with another CLR type");
                 }
@@ -290,29 +292,47 @@ namespace Cooke.GraphQL
                 return typedBuilder;
             }
 
-            var typeBuilder = new TypeBuilder<T>(name, this);
+            var typeBuilder = new GqlObjectTypeBuilder<T>(name, this);
             _types[name] = typeBuilder;
             typeBuilderAction?.Invoke(typeBuilder);
             return typeBuilder;
         }
 
-        public TypeBuilder<T> Type<T>(string name)
-        {
-            return Type<T>(name, null);
-        }
-
-        public TypeBuilder<T> Type<T>()
+        public GqlObjectTypeBuilder<T> ObjectType<T>(Action<GqlObjectTypeBuilder<T>> typeBuilderAction)
         {
             var name = _options.TypeNamingStrategy.ResolveTypeName(typeof(T));
-            return Type<T>(name, null);
+            return ObjectType<T>(name, null);
+        }
+
+        public GqlObjectTypeBuilder<T> ObjectType<T>(string name)
+        {
+            return ObjectType<T>(name, null);
+        }
+
+        public GqlObjectTypeBuilder<T> ObjectType<T>()
+        {
+            var name = _options.TypeNamingStrategy.ResolveTypeName(typeof(T));
+            return ObjectType<T>(name, null);
         }
     }
 
-    public class TypeBuilder<T> : TypeBuilder
+    public class StandardGqlTypeBuilder : GqlTypeBuilder
+    {
+        private readonly GqlType _type;
+
+        public StandardGqlTypeBuilder(GqlType type) : base(type.Name)
+        {
+            _type = type;
+        }
+
+        public override GqlType Build() => _type;
+    }
+
+    public class GqlObjectTypeBuilder<T> : GqlTypeBuilder
     {
         private readonly SchemaBuilder _schemaBuilder;
 
-        public TypeBuilder(string name, SchemaBuilder schemaBuilder) : base(name)
+        public GqlObjectTypeBuilder(string name, SchemaBuilder schemaBuilder) : base(name)
         {
             _schemaBuilder = schemaBuilder;
         }
@@ -326,15 +346,70 @@ namespace Cooke.GraphQL
 
             var fieldName = _schemaBuilder.Options.FieldNamingStrategy.ResolveFieldName(memberExpression.Member);
         }
+
+        public override GqlType Build()
+        {
+            Func<Dictionary<string, GqlFieldInfo>> fieldsFunc = null;
+            return new GqlObjectType(Name, fieldsFunc, new InterfaceType[0]);
+        }
     }
 
-    public class TypeBuilder
+    public class GqlObjectTypeBuilder : GqlTypeBuilder
     {
-        public TypeBuilder(string name)
+        private readonly SchemaBuilder _schemaBuilder;
+
+        public GqlObjectTypeBuilder(string name, SchemaBuilder schemaBuilder) : base(name)
+        {
+            _schemaBuilder = schemaBuilder;
+        }
+
+        public void Field<TReturn>(string name)
+        {
+            var fieldBuilder = new FieldBuilder(name);
+            _fields[name] = fieldBuilder;
+            return fieldBuilder;
+        }
+
+        public override GqlType Build()
+        {
+            Func<Dictionary<string, GqlFieldInfo>> fieldsFunc = null;
+            return new GqlObjectType(Name, fieldsFunc, new InterfaceType[0]);
+        }
+    }
+
+    public class FieldBuilder
+    {
+        private readonly string _name;
+        private readonly SchemaBuilder _schemaBuilder;
+        private GqlTypeBuilder _returns;
+
+        public FieldBuilder(string name, SchemaBuilder schemaBuilder)
+        {
+            _name = name;
+            _schemaBuilder = schemaBuilder;
+        }
+
+        public FieldBuilder Returns(GqlTypeBuilder typeBuilder)
+        {
+            _returns = typeBuilder;
+            return this;
+        }
+
+        public FieldBuilder Returns<T>()
+        {
+            _returns = _schemaBuilder.Type<T>();
+        }
+    }
+
+    public abstract class GqlTypeBuilder
+    {
+        public GqlTypeBuilder(string name)
         {
             Name = name;
         }
 
         public string Name { get; }
+
+        public abstract GqlType Build();
     }
 }

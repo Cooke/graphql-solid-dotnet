@@ -6,10 +6,11 @@ using Newtonsoft.Json.Linq;
 
 namespace Cooke.GraphQL.Types
 {
-    public sealed class ObjectType : ComplexBaseType
+    public sealed class GqlObjectType : ComplexBaseType
     {
-        public ObjectType(string name) : base(name)
+        public GqlObjectType(string name, Func<Dictionary<string, GqlFieldInfo>> fieldsFunc, IEnumerable<InterfaceType> interfaces) : base(name, fieldsFunc)
         {
+            Interfaces = interfaces;
         }
 
         public IEnumerable<InterfaceType> Interfaces { get; }

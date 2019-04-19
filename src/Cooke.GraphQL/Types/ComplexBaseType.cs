@@ -7,13 +7,15 @@ namespace Cooke.GraphQL.Types
 {
     public abstract class ComplexBaseType : GqlType
     {
-        protected ComplexBaseType(string name, Dictionary<string, GqlFieldInfo> fields)
+        private readonly Lazy<Dictionary<string, GqlFieldInfo>> _fields;
+
+        protected ComplexBaseType(string name, Func<Dictionary<string, GqlFieldInfo>> fieldProvider)
         {
             Name = name;
-            Fields = fields;
+            _fields = new Lazy<Dictionary<string, GqlFieldInfo>>(fieldProvider);
         }
 
-        public Dictionary<string, GqlFieldInfo> Fields { get; }
+        public Dictionary<string, GqlFieldInfo> Fields => _fields.Value;
 
         public override string Name { get; }
 

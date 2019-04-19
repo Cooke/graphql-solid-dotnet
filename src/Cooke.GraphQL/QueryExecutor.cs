@@ -25,7 +25,7 @@ namespace Cooke.GraphQL
         private readonly QueryExecutorOptions _options;
         private readonly List<IMiddleware> _middlewares;
         private readonly IntrospectionQuery _introspectionObjectValue;
-        private readonly ObjectType _introspectionObjectType;
+        private readonly GqlObjectType _introspectionObjectType;
         private readonly Schema _introspectionSchema;
 
         public QueryExecutor(Schema schema, QueryExecutorOptions options)
@@ -64,7 +64,7 @@ namespace Cooke.GraphQL
             var operation = GetOperation(document, operationName);
             var coercedVariableValues = CoerceVariableValues(operation, variableValues ?? new JObject());
 
-            ObjectType initialObjectType;
+            GqlObjectType initialObjectType;
             bool exposeIntrospection = true;
             switch (operation.Operation)
             {
@@ -279,7 +279,7 @@ namespace Cooke.GraphQL
             }
             else if (fragmentType.Kind == __TypeKind.Interface)
             {
-                return objectType is ObjectType objType && objType.Interfaces.Any(y => y.Name == fragmentType.Name);
+                return objectType is GqlObjectType objType && objType.Interfaces.Any(y => y.Name == fragmentType.Name);
             }
             
             // TODO support union types
@@ -425,7 +425,7 @@ namespace Cooke.GraphQL
                 return resultArray;
             }
 
-            if (fieldType is ScalarBaseType scalarGraphType)
+            if (fieldType is GqlScalarType scalarGraphType)
             {
                 return scalarGraphType.CoerceResultValue(result);
             }

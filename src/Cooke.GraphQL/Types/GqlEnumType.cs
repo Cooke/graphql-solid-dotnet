@@ -18,11 +18,11 @@ namespace Cooke.GraphQL.Types
         public string Value { get; }
     }
 
-    class EnumType : ScalarBaseType
+    class GqlEnumType : GqlType
     {
         private readonly Type _enumType;
 
-        public EnumType(IEnumerable<EnumValue> enumValues, Type enumType)
+        public GqlEnumType(IEnumerable<EnumValue> enumValues, Type enumType)
         {
             _enumType = enumType;
             EnumValues = enumValues;
@@ -77,10 +77,10 @@ namespace Cooke.GraphQL.Types
 
         public override __TypeKind Kind => __TypeKind.Enum;
 
-        public override JValue CoerceResultValue(object resolvedValue)
-        {
-            // TODO add support for custom/non upper enum values
-            return new JValue(resolvedValue.ToString().ToUpperInvariant());
-        }
+        //public override JValue CoerceResultValue(object resolvedValue)
+        //{
+        //    // TODO add support for custom/non upper enum values
+        //    return new JValue(resolvedValue.ToString().ToUpperInvariant());
+        //}
     }
 }

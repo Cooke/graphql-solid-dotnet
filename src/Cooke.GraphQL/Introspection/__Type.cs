@@ -14,7 +14,7 @@ namespace Cooke.GraphQL.Introspection
 
             _graphType = graphType;
 
-            if (_graphType is ObjectType type)
+            if (_graphType is GqlObjectType type)
             {
                 Fields = type.Fields.Values.Select(x => new __Field(x, typeProvider)).ToArray();
                 Interfaces = type.Interfaces.Select(typeProvider.GetOrCreateType).ToArray();
@@ -23,7 +23,7 @@ namespace Cooke.GraphQL.Introspection
             {
                 InputFields = input.Fields.Values.Select(x => new __Field(x, typeProvider)).ToArray();
             }
-            else if (graphType is EnumType enumType)
+            else if (graphType is GqlEnumType enumType)
             {
                 EnumValues = enumType.EnumValues.Select(x => new __EnumValue(x.Value)).ToArray();
             }

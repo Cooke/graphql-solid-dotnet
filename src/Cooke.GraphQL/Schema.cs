@@ -9,16 +9,16 @@ namespace Cooke.GraphQL
     {
         private readonly IEnumerable<GqlType> _types;
 
-        public Schema(ObjectType queryType, ObjectType mutationType, IEnumerable<GqlType> types)
+        public Schema(GqlObjectType queryType, GqlObjectType mutationType)
         {
             _types = types;
             Query = queryType;
             Mutation = mutationType;
         }
 
-        public ObjectType Mutation { get; }
+        public GqlObjectType Mutation { get; }
 
-        public ObjectType Query { get; }
+        public GqlObjectType Query { get; }
 
         internal GqlType GetType(string value)
         {
