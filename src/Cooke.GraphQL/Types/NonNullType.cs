@@ -5,7 +5,7 @@ using Newtonsoft.Json.Linq;
 
 namespace Cooke.GraphQL.Types
 {
-    public sealed class NonNullType : BaseType
+    public sealed class NonNullType : TypeDefinition
     {
         public override object CoerceInputLiteralValue(GraphQLValue value)
         {
@@ -29,7 +29,7 @@ namespace Cooke.GraphQL.Types
             return coerceInputVariableValue;
         }
 
-        public BaseType ItemType { get; internal set; }
+        public TypeDefinition ItemType { get; internal set; }
 
         public override string Name => null;
 

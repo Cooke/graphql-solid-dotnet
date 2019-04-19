@@ -4,7 +4,7 @@ using Newtonsoft.Json.Linq;
 
 namespace Cooke.GraphQL.Types
 {
-    public abstract class BaseType
+    public abstract class TypeDefinition
     {
         public abstract object CoerceInputLiteralValue(GraphQLValue value);
 

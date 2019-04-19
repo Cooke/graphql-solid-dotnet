@@ -31,7 +31,7 @@ namespace Cooke.GraphQL.AspNetCore
             {
                 var policy = await AuthorizationPolicy.CombineAsync(_policyProvider, new [] { authorizeAttribute });
                 var authResult = await _authorizationService.AuthorizeAsync(_contextAccessor.HttpContext.User, null, policy);
-                if (!authResult)
+                if (!authResult.Succeeded)
                 {
                     throw new FieldErrorException("Access denied");
                 }

@@ -5,7 +5,7 @@ namespace Cooke.GraphQL.Introspection
 {
     public class __Field
     {
-        public __Field(FieldDescriptor fieldInfo, __TypeProvider typeProvider)
+        public __Field(FieldDefinition fieldInfo, __TypeProvider typeProvider)
         {
             Name = fieldInfo.Name;
             Type = typeProvider.GetOrCreateType(fieldInfo.Type);

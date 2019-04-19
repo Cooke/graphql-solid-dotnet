@@ -6,9 +6,9 @@ namespace Cooke.GraphQL.Introspection
 {
     public class __Type
     {
-        private readonly BaseType _graphType;
+        private readonly TypeDefinition _graphType;
 
-        public __Type(BaseType graphType, __TypeProvider typeProvider)
+        public __Type(TypeDefinition graphType, __TypeProvider typeProvider)
         {
             typeProvider.RegisterType(graphType, this);
 

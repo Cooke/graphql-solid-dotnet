@@ -5,7 +5,7 @@ using Cooke.GraphQL.Annotations;
 
 namespace Cooke.GraphQL.Types
 {
-    public abstract class ComplexBaseType : BaseType
+    public abstract class ComplexBaseType : TypeDefinition
     {
         protected ComplexBaseType(Type clrType)
         {
@@ -14,18 +14,18 @@ namespace Cooke.GraphQL.Types
             Name = typeNameAttribute?.Name ?? clrType.Name;
         }
 
-        public Dictionary<string, FieldDescriptor> Fields { get; internal set; }
+        public Dictionary<string, FieldDefinition> Fields { get; internal set; }
 
         internal Type ClrType { get; }
 
         public override string Name { get; }
 
-        public FieldDescriptor GetFieldInfo(string fieldName)
+        public FieldDefinition GetFieldInfo(string fieldName)
         {
             return Fields[fieldName];
         }
 
-        public BaseType GetFieldType(string fieldName)
+        public TypeDefinition GetFieldType(string fieldName)
         {
             return Fields[fieldName].Type;
         }

@@ -12,7 +12,7 @@ namespace Cooke.GraphQL.AutoTests.UnitTests
         public StarWarsIntrespectionTests()
         {
             var schema = new SchemaBuilder()
-                .UseQuery<Query>()
+                .Query<Query>()
                 .Build();
 
             _queryExecutor = new QueryExecutorBuilder()

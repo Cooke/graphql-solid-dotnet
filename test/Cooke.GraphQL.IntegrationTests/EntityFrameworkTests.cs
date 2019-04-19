@@ -18,7 +18,7 @@ namespace Cooke.GraphQL.AutoTests.IntegrationTests
         public EntityFrameworkTests()
         {
             _schema = new SchemaBuilder()
-                .UseQuery<Query>()
+                .Query<Query>()
                 .UseMutation<Mutation>()
                 .UseAttributeMetadata()
                 .Build();

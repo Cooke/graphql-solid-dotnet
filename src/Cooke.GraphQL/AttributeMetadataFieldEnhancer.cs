@@ -13,7 +13,7 @@ namespace Cooke.GraphQL
             return builder.UseFieldEnhancer(AddAttributeMetadata);
         }
 
-        private static FieldDescriptor AddAttributeMetadata(FieldDescriptor fieldInfo)
+        private static FieldDefinition AddAttributeMetadata(FieldDefinition fieldInfo)
         {
             List<Attribute> customAttributes = fieldInfo.GetMetadata<MemberInfo>().GetCustomAttributes().ToList();
             return fieldInfo.WithMetadataField(customAttributes);

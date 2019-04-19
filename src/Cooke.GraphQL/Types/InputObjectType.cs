@@ -8,7 +8,7 @@ using Newtonsoft.Json.Linq;
 
 namespace Cooke.GraphQL.Types
 {
-    public sealed class InputObjectType : BaseType
+    public sealed class InputObjectType : TypeDefinition
     {
         public InputObjectType(Type clrType)
         {
@@ -21,7 +21,7 @@ namespace Cooke.GraphQL.Types
 
         public Type ClrType { get; }
 
-        public BaseType GetFieldType(string fieldName)
+        public TypeDefinition GetFieldType(string fieldName)
         {
             return Fields[fieldName].Type;
         }

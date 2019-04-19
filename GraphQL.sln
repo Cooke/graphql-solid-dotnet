@@ -15,6 +15,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{C6FCEB39-0CD
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{DF172631-64AD-4151-AA51-8E3DD98C74B1}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Cooke.GraphQL.IntegrationTests", "test\Cooke.GraphQL.IntegrationTests\Cooke.GraphQL.IntegrationTests.csproj", "{60F35223-C05C-4EDC-A9B6-817D82EE813C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -37,6 +39,10 @@ Global
 		{7C149D1C-E9A8-4BCB-B360-8EB472992163}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7C149D1C-E9A8-4BCB-B360-8EB472992163}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7C149D1C-E9A8-4BCB-B360-8EB472992163}.Release|Any CPU.Build.0 = Release|Any CPU
+		{60F35223-C05C-4EDC-A9B6-817D82EE813C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{60F35223-C05C-4EDC-A9B6-817D82EE813C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{60F35223-C05C-4EDC-A9B6-817D82EE813C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{60F35223-C05C-4EDC-A9B6-817D82EE813C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -46,5 +52,9 @@ Global
 		{A2B15FB0-F643-4AFF-9E50-878F98C714AF} = {C6FCEB39-0CDF-4D76-9355-235FC9BE9C2E}
 		{7D358B96-9BFC-4A53-A273-2DE1D24D36FD} = {C6FCEB39-0CDF-4D76-9355-235FC9BE9C2E}
 		{7C149D1C-E9A8-4BCB-B360-8EB472992163} = {DF172631-64AD-4151-AA51-8E3DD98C74B1}
+		{60F35223-C05C-4EDC-A9B6-817D82EE813C} = {DF172631-64AD-4151-AA51-8E3DD98C74B1}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {7F8177C3-2D83-4822-A667-9ADA3096AF15}
 	EndGlobalSection
 EndGlobal

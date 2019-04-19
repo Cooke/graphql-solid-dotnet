@@ -9,13 +9,13 @@ using Cooke.GraphQL.Types;
 
 namespace Cooke.GraphQL
 {
-    public delegate FieldDescriptor FieldEnhancer(FieldDescriptor fieldInfo);
+    public delegate FieldDefinition FieldEnhancer(FieldDefinition fieldInfo);
 
     public class SchemaBuilder
     {
         private readonly SchemaBuilderOptions _options;
         private readonly IList<FieldEnhancer> _fieldEnhancers = new List<FieldEnhancer>();
-        private readonly Dictionary<TypeCacheKey, BaseType> _types = new Dictionary<TypeCacheKey, BaseType>();
+        private readonly Dictionary<TypeCacheKey, TypeDefinition> _types = new Dictionary<TypeCacheKey, TypeDefinition>();
         private Type _queryType;
         private Type _mutationType;
 
@@ -31,7 +31,7 @@ namespace Cooke.GraphQL
         {
         }
 
-        public SchemaBuilder UseQuery<T>()
+        public SchemaBuilder Query<T>()
         {
             _queryType = typeof(T);
             return this;
@@ -57,7 +57,7 @@ namespace Cooke.GraphQL
         }
 
         // TODO change to data driven type creation and add possibility to register custom type factories
-        private BaseType CreateType(Type clrType, bool withinInputType = false)
+        private TypeDefinition CreateType(Type clrType, bool withinInputType = false)
         {
             clrType = TypeHelper.UnwrapTask(clrType);
 
@@ -105,7 +105,7 @@ namespace Cooke.GraphQL
             if (clrType.GetTypeInfo().IsClass)
             {
                 var baseType = clrType.GetTypeInfo().BaseType;
-                BaseType baseGraphType = null;
+                TypeDefinition baseGraphType = null;
                 if (baseType != typeof(object))
                 {
                     baseGraphType = CreateType(baseType, withinInputType);
@@ -113,7 +113,7 @@ namespace Cooke.GraphQL
 
                 if (!withinInputType)
                 {
-                    BaseType resultGraphType;
+                    TypeDefinition resultGraphType;
                     if (clrType.GetTypeInfo().IsAbstract)
                     {
                         var interfaceGraphType = new InterfaceType(clrType);
@@ -153,7 +153,7 @@ namespace Cooke.GraphQL
             throw new NotSupportedException($"The given CLR type '{clrType}' is currently not supported.");
         }
 
-        private Dictionary<string, FieldDescriptor> CreateFields(Type clrType)
+        private Dictionary<string, FieldDefinition> CreateFields(Type clrType)
         {
             var propertyInfos = clrType.GetRuntimeProperties().Where(x => x.GetMethod.IsPublic && !x.GetMethod.IsStatic);
             var fields = propertyInfos.Select(x => _fieldEnhancers.Aggregate(CreateFieldInfo(x), (f, e) => e(f)));
@@ -171,7 +171,7 @@ namespace Cooke.GraphQL
             return fields.ToDictionary(x => x.Name);
         }
 
-        private FieldDescriptor CreateFieldInfo(PropertyInfo propertyInfo)
+        private FieldDefinition CreateFieldInfo(PropertyInfo propertyInfo)
         {
             var type = CreateType(propertyInfo.PropertyType);
             FieldResolver resolver = async context =>
@@ -198,13 +198,13 @@ namespace Cooke.GraphQL
                 };
             }
 
-            var graphFieldInfo = new FieldDescriptor(_options.FieldNamingStrategy.ResolveFieldName(propertyInfo), type, resolver, new FieldArgumentDescriptor[0]);
+            var graphFieldInfo = new FieldDefinition(_options.FieldNamingStrategy.ResolveFieldName(propertyInfo), type, resolver, new FieldArgumentDescriptor[0]);
             return graphFieldInfo
                 .WithMetadataField(propertyInfo)
                 .WithMetadataField((MemberInfo)propertyInfo);
         }
 
-        private FieldDescriptor CreateFieldInfo(MethodInfo methodInfo, FieldResolver next)
+        private FieldDefinition CreateFieldInfo(MethodInfo methodInfo, FieldResolver next)
         {
             var type = CreateType(methodInfo.ReturnType);
             var skipParameterTypes = new[] { typeof(FieldResolveContext), typeof(FieldResolver) };
@@ -222,7 +222,7 @@ namespace Cooke.GraphQL
                 return await UnwrapResult(result);
             }
 
-            return new FieldDescriptor(fieldName, type, Resolver, fieldParameters)
+            return new FieldDefinition(fieldName, type, Resolver, fieldParameters)
                 .WithMetadataField(methodInfo)
                 .WithMetadataField((MemberInfo)methodInfo);
         }
@@ -288,6 +288,24 @@ namespace Cooke.GraphQL
                     return (ClrType.GetHashCode() * 397) ^ IsInput.GetHashCode();
                 }
             }
+        }
+
+        public void Type<T>(Action<TypeBuilder<T>> typeBuilder)
+        {
+            var builder = new TypeBuilder<T>(_options.TypeNamingStrategy.ResolveTypeName(typeof(T)), typeof(T));
+        }
+    }
+
+    public class TypeBuilder<T>
+    {
+        public string Name { get; }
+
+        public Type ClrType { get; }
+
+        public TypeBuilder(string name, Type clrType)
+        {
+            Name = name;
+            ClrType = clrType;
         }
     }
 }

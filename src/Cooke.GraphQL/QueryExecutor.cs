@@ -32,7 +32,7 @@ namespace Cooke.GraphQL
         {
             _schema = schema;
             _options = options;
-            _introspectionSchema = new SchemaBuilder().UseQuery<IntrospectionQuery>().Build();
+            _introspectionSchema = new SchemaBuilder().Query<IntrospectionQuery>().Build();
             _introspectionObjectValue = new IntrospectionQuery(schema, _introspectionSchema);
             _introspectionObjectType = _introspectionSchema.Query;
 
@@ -135,7 +135,7 @@ namespace Cooke.GraphQL
             return coercedValues;
         }
 
-        private BaseType ParseType(GraphQLType variableDefinitionType)
+        private TypeDefinition ParseType(GraphQLType variableDefinitionType)
         {
             switch (variableDefinitionType)
             {
@@ -205,7 +205,7 @@ namespace Cooke.GraphQL
             return result;
         }
 
-        private Dictionary<string, List<GraphQLFieldSelection>> CollectFields(BaseType objectType, QueryExecutionContext context, IEnumerable<ASTNode> selections, HashSet<string> visitedFragments = null)
+        private Dictionary<string, List<GraphQLFieldSelection>> CollectFields(TypeDefinition objectType, QueryExecutionContext context, IEnumerable<ASTNode> selections, HashSet<string> visitedFragments = null)
         {
             visitedFragments = visitedFragments ?? new HashSet<string>();
             var groupedFields = new Dictionary<string, List<GraphQLFieldSelection>>();
@@ -271,7 +271,7 @@ namespace Cooke.GraphQL
             // var groupedFields = selections.Cast<GraphQLFieldSelection>().GroupBy(x => x.Alias?.Value ?? x.Name.Value).ToDictionary(x => x.Key, x => x.ToList());
         }
 
-        private static bool DoesFragmentTypeApply(BaseType objectType, BaseType fragmentType)
+        private static bool DoesFragmentTypeApply(TypeDefinition objectType, TypeDefinition fragmentType)
         {
             if (fragmentType.Kind == __TypeKind.Object)
             {
@@ -291,7 +291,7 @@ namespace Cooke.GraphQL
             Task<object> Resolve(FieldResolveContext fieldContext, FieldResolver next);
         }
 
-        private async Task<JToken> ExecuteFieldAsync(QueryExecutionContext executionContext, ComplexBaseType objectType, object objectValue, BaseType fieldType, GraphQLFieldSelection field)
+        private async Task<JToken> ExecuteFieldAsync(QueryExecutionContext executionContext, ComplexBaseType objectType, object objectValue, TypeDefinition fieldType, GraphQLFieldSelection field)
         {
             var argumentValues = CoerceArgumentValues(objectType, field, executionContext);
 
@@ -381,12 +381,12 @@ namespace Cooke.GraphQL
             return coercedValues;
         }
 
-        private static object CoerceInputValue(GraphQLArgument value, BaseType argumentType)
+        private static object CoerceInputValue(GraphQLArgument value, TypeDefinition argumentType)
         {
             return argumentType.CoerceInputLiteralValue(value.Value);
         }
 
-        private async Task<JToken> CompleteValue(QueryExecutionContext executionContext, GraphQLFieldSelection field, BaseType fieldType, object result)
+        private async Task<JToken> CompleteValue(QueryExecutionContext executionContext, GraphQLFieldSelection field, TypeDefinition fieldType, object result)
         {
             if (fieldType is NonNullType nonNullGraphType)
             {
