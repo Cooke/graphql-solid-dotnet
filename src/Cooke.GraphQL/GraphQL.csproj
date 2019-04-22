@@ -17,6 +17,7 @@
   <ItemGroup>
     <PackageReference Include="GraphQL-Parser" Version="2.0.0" />
     <PackageReference Include="Newtonsoft.Json" Version="10.0.2" />
+    <PackageReference Include="System.ValueTuple" Version="4.3.0" />
   </ItemGroup>
 
 </Project>

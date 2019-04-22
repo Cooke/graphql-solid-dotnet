@@ -137,7 +137,7 @@ namespace Cooke.GraphQL
             switch (variableDefinitionType)
             {
                 case GraphQLListType graphQLListType:
-                    return new ListType { ItemType = ParseType(graphQLListType.Type)}; ;
+                    return new GqlListType { ItemType = ParseType(graphQLListType.Type)}; ;
 
                 case GraphQLNamedType graphQLNamedType:
                     return _schema.GetType(graphQLNamedType.Name.Value);
@@ -408,7 +408,7 @@ namespace Cooke.GraphQL
                 return await ExecuteSelectionSetAsync(executionContext, field.SelectionSet, objectGraphType, result);
             }
 
-            if (fieldType is ListType type)
+            if (fieldType is GqlListType type)
             {
                 var listFieldType = type;
 

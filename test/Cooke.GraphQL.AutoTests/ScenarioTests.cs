@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using Cooke.GraphQL.Types;
+using Xunit.Sdk;
 
 namespace Cooke.GraphQL.AutoTests
 {
@@ -8,34 +10,31 @@ namespace Cooke.GraphQL.AutoTests
     {
         public ScenarioTests()
         {
-            var builder = new SchemaBuilder();
+            var builder = new SchemaBuilder(new SchemaBuilderOptions { NonNullDefault = true });
             builder.Query<Query>();
-            builder.ObjectType<TestUser>(type =>
+            builder.DefineType<TestUser>(type =>
             {
-                type.Field(x => x.Friends);
-                type.Field("ListOfInts", x => new[] {1, 2, 3});
-                type.Field("ListOfStrings");
-                type.AddResolverType<TestUserResolver>();
+                type.DefineField(x => x.Friends).Type(c => c.NonNull.ListOf.NonNull.Type<TestUser>());
+                type.DefineField(x => x.Friends).Type(c => c.Nullable.ListOf.Nullable.Type<TestUser>());
+                type.DefineField(x => x.Friends).Type(c => c.NonNull.String);
+                type.DefineField("MyFriends", ctx => ctx.Instance.Friends).Type(c => c.NonNull.Type("Query"));
+                type.DefineField("ListOfInts", ctx => new[] {1, 2, 3});
+                type.DefineField("Mirror", ctx => ctx.Arguments["value"]).Arguments(("value", c => c.String));
+                type.IncludeResolverType<TestUserResolver>();
             });
 
-            builder.AddSchema(@"
-                type Post {
-                    name: String
-                    tags: [Tag!]!
-                }
+            
 
-                type Tag {
-                    name: String!
-                }
-");
+//            builder.AddSchema(@"
+//                type Post {
+//                    name: String
+//                    tags: [Tag!]!
+//                }
 
-            builder.ObjectType("Tag", type => type.AddResolverType<TagResolverType>());
-            builder.ObjectType("Post", type =>
-            {
-                type.Field("tags", builder.Type("Tag"));
-            });
-
-            builder.ObjectType("Post", type => { type.AddResolverType<PostResolver>(); });
+//                type Tag {
+//                    name: String!
+//                }
+//");
         }
 
         private class PostResolver

@@ -7,6 +7,7 @@ namespace Cooke.GraphQL
     {
         public IFieldNamingStrategy FieldNamingStrategy { get; set; } = new CamelCaseFieldNamingStrategy();
         public ITypeNamingStrategy TypeNamingStrategy { get; set; } = new SameNameTypeNameStrategy();
+        public bool NonNullDefault { get; set; }
     }
 
     public class SameNameTypeNameStrategy : ITypeNamingStrategy

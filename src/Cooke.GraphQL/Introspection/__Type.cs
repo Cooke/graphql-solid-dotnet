@@ -27,7 +27,7 @@ namespace Cooke.GraphQL.Introspection
             {
                 EnumValues = enumType.EnumValues.Select(x => new __EnumValue(x.Value)).ToArray();
             }
-            else if (graphType is ListType listType)
+            else if (graphType is GqlListType listType)
             {
                 OfType = typeProvider.GetOrCreateType(listType.ItemType);
             }

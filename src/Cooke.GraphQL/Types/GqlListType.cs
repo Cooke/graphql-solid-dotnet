@@ -5,9 +5,14 @@ using Newtonsoft.Json.Linq;
 
 namespace Cooke.GraphQL.Types
 {
-    public sealed class ListType : GqlType
+    public sealed class GqlListType : GqlType
     {
-        public GqlType ItemType { get; internal set; }
+        public GqlListType(GqlType itemType)
+        {
+            ItemType = itemType;
+        }
+
+        public GqlType ItemType { get; }
 
         public override object CoerceInputLiteralValue(GraphQLValue value)
         {

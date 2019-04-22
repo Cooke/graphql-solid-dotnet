@@ -16,16 +16,15 @@ namespace Cooke.GraphQL
     {
         private readonly SchemaBuilderOptions _options;
         private readonly IList<FieldEnhancer> _fieldEnhancers = new List<FieldEnhancer>();
-        private readonly Dictionary<string, FutureGqlType> _types;
-        private readonly Dictionary<string, GqlType> _builtTypes = new Dictionary<string, GqlType>();
-        private FutureGqlType _queryType;
-        private FutureGqlType _mutationType;
+        private readonly Dictionary<string, IGqlTypeBuilder> _typeBuilders = new Dictionary<string, IGqlTypeBuilder>();
+        private IGqlTypeBuilder _queryType;
+        private IGqlTypeBuilder _mutationType;
 
         public SchemaBuilder(SchemaBuilderOptions options)
         {
             _options = options;
 
-            _types = StandardScalars.All.ToDictionary(x => x.Name, x => (FutureGqlType) new BuiltFutureType(x));
+            // _types = StandardScalars.All.ToDictionary(x => x.Name, x => (GqlTypeReference) new BuiltFutureType(x));
         }
 
         public SchemaBuilder() : this(new SchemaBuilderOptions())
@@ -36,13 +35,7 @@ namespace Cooke.GraphQL
 
         public SchemaBuilder Query<T>()
         {
-            _queryType = ObjectType<T>();
-            return this;
-        }
-
-        public SchemaBuilder UseMutation<T>()
-        {
-            _mutationType = ObjectType<T>();
+            _queryType = DefineType<object>("Query", type => type.IncludeResolverType<T>());
             return this;
         }
 
@@ -56,53 +49,120 @@ namespace Cooke.GraphQL
         {
             var graphQueryType = _queryType.Build();
             var graphMutationType = _mutationType?.Build();
-            return new Schema((GqlObjectType) graphQueryType, (GqlObjectType)graphMutationType, _types.Values);
+            return new Schema((GqlObjectType) graphQueryType, (GqlObjectType) graphMutationType);
         }
 
-        // TODO change to data driven type creation and add possibility to register custom type factories
-        private ObjectTypeBuilder<T> CreateType<T>(bool withinInputType = false)
+        private static async Task<object> UnwrapResult(object result)
         {
-            var clrType = typeof(T);
-            var name = _options.TypeNamingStrategy.ResolveTypeName(clrType);
-            clrType = TypeHelper.UnwrapTask(clrType);
-
-            if (_types.ContainsKey(typeCacheKey))
+            var task = result as Task;
+            if (task != null)
             {
-                return _types[typeCacheKey];
+                await task;
+                // TODO investigate if using expressions directly would be more performant
+                dynamic dynamicTask = task;
+                return dynamicTask.Result;
             }
 
-            if (clrType == typeof(bool))
+            return result;
+        }
+
+        public ObjectTypeBuilder<T> DefineType<T>(string name, Action<ObjectTypeBuilder<T>> typeBuilderAction)
+        {
+            if (_typeBuilders.ContainsKey(name))
             {
-                _types[typeCacheKey] = BooleanType.Instance;
-                return StringType.Instance;
+                throw new ArgumentException($"A type with name '{name}' has already been defined");
             }
 
-            if (clrType == typeof(string))
+            var typeBuilder = new ObjectTypeBuilder<T>(name, this);
+            _typeBuilders[name] = typeBuilder;
+            typeBuilderAction?.Invoke(typeBuilder);
+            return typeBuilder;
+        }
+
+        public ObjectTypeBuilder<T> DefineType<T>(Action<ObjectTypeBuilder<T>> typeBuilderAction)
+        {
+            var name = _options.TypeNamingStrategy.ResolveTypeName(typeof(T));
+            return DefineType<T>(name, null);
+        }
+
+        public ObjectTypeBuilder<T> DefineType<T>(string name)
+        {
+            return DefineType<T>(name, null);
+        }
+
+        public ObjectTypeBuilder<T> DefineType<T>()
+        {
+            var name = _options.TypeNamingStrategy.ResolveTypeName(typeof(T));
+            return DefineType<T>(name, null);
+        }
+
+        public IGqlTypeReference TypeRef<TReturn>()
+        {
+            return new TypeReferenceBuilder(_options.NonNullDefault).Type<TReturn>();
+        }
+    }
+
+    public interface IGqlTypeBuilder
+    {
+        GqlType Build();
+    }
+
+    public class ObjectTypeBuilder<TObject> : IGqlTypeBuilder
+    {
+        private readonly SchemaBuilder _schemaBuilder;
+        private readonly Dictionary<string, IFieldBuilder> _fields = new Dictionary<string, IFieldBuilder>();
+
+        public ObjectTypeBuilder(string name, SchemaBuilder schemaBuilder)
+        {
+            Name = name;
+            _schemaBuilder = schemaBuilder;
+        }
+
+        public string Name { get; }
+
+        public FieldBuilder DefineField<TReturn>(Expression<Func<TObject, TReturn>> expression)
+        {
+            if (!(expression.Body is MemberExpression memberExpression))
             {
-                _types[typeCacheKey] = StringType.Instance;
-                return StringType.Instance;
+                throw new ArgumentException("Only expressions starting with a member expression is valid.");
             }
 
-            if (clrType == typeof(int))
+            var fieldName = _schemaBuilder.Options.FieldNamingStrategy.ResolveFieldName(memberExpression.Member);
+            var resolver = expression.Compile();
+            return DefineField(fieldName, ctx => resolver(ctx.Instance));
+        }
+
+        public FieldBuilder DefineField<TReturn>(string name, Func<FieldResolveContext<TObject>, TReturn> resolver)
+        {
+            if (_fields.ContainsKey(name))
             {
-                _types[typeCacheKey] = IntType.Instance;
-                return IntType.Instance;
+                throw new ArgumentException($"A field with name '{name}' has already been defined");
             }
 
-            if (clrType.GetTypeInfo().IsEnum)
-            {
-                var enumType = new GqlEnumType(Enum.GetNames(clrType).Select(x => new EnumValue(x)), clrType);
-                _types[typeCacheKey] = enumType;
-                return enumType;
-            }
+            return new FieldBuilder(
+                name,
+                (FieldResolveContext context) => Task.FromResult((object)resolver((FieldResolveContext<TObject>) context)),
+                _schemaBuilder.TypeRef<TReturn>());
+        }
+
+        public GqlType Build(BuildContext buildContext)
+        {
+            return new GqlObjectType(Name, () => _fields.ToDictionary(x => x.Key, x => x.Value.Build(buildContext)),
+                new InterfaceType[0]);
+        }
+
+        private ObjectTypeBuilder<T> CreateType<T>()
+        {
+            var clrType = TypeHelper.UnwrapTask(typeof(T));
 
             if (TypeHelper.IsList(clrType))
             {
-                var listEnumerableType = clrType.GetTypeInfo().ImplementedInterfaces.Concat(new[] { clrType })
+                var listEnumerableType = clrType.GetTypeInfo().ImplementedInterfaces.Concat(new[] {clrType})
                     .First(x => x.IsConstructedGenericType && x.GetGenericTypeDefinition() == typeof(IEnumerable<>));
-                var listGraphType = new ListType();
-                _types[typeCacheKey] = listGraphType;
-                listGraphType.ItemType = CreateType(listEnumerableType.GenericTypeArguments.Single(), withinInputType);
+                var listGraphType = new GqlListType
+                {
+                    ItemType = CreateType<T>(listEnumerableType.GenericTypeArguments.Single(), withinInputType)
+                };
                 return listGraphType;
             }
 
@@ -134,11 +194,12 @@ namespace Cooke.GraphQL
                         // TODO better support for interface types
                         objectGraphType.Interfaces = baseGraphType?.Kind == __TypeKind.Interface
                             ? new List<InterfaceType> {(InterfaceType) baseGraphType}.ToArray()
-                            : new InterfaceType[0]; 
+                            : new InterfaceType[0];
                         resultGraphType = objectGraphType;
                     }
 
-                    foreach (var subType in clrType.GetTypeInfo().Assembly.DefinedTypes.Where(x => x.BaseType == clrType))
+                    foreach (var subType in clrType.GetTypeInfo().Assembly.DefinedTypes
+                        .Where(x => x.BaseType == clrType))
                     {
                         CreateType(subType.AsType());
                     }
@@ -159,19 +220,25 @@ namespace Cooke.GraphQL
 
         private Dictionary<string, GqlFieldInfo> CreateFields(Type clrType)
         {
-            var propertyInfos = clrType.GetRuntimeProperties().Where(x => x.GetMethod.IsPublic && !x.GetMethod.IsStatic);
+            var propertyInfos =
+                clrType.GetRuntimeProperties().Where(x => x.GetMethod.IsPublic && !x.GetMethod.IsStatic);
             var fields = propertyInfos.Select(x => _fieldEnhancers.Aggregate(CreateFieldInfo(x), (f, e) => e(f)));
 
-            var methodInfos = clrType.GetTypeInfo().DeclaredMethods.Where(x => x.IsPublic && !x.IsSpecialName && !x.IsStatic);
-            fields = fields.Concat(methodInfos.Select(x => _fieldEnhancers.Aggregate(CreateFieldInfo(x, null), (f, e) => e(f))));
+            var methodInfos = clrType.GetTypeInfo().DeclaredMethods
+                .Where(x => x.IsPublic && !x.IsSpecialName && !x.IsStatic);
+            fields = fields.Concat(methodInfos.Select(x =>
+                _fieldEnhancers.Aggregate(CreateFieldInfo(x, null), (f, e) => e(f))));
             return fields.ToDictionary(x => x.Name);
         }
 
         private Dictionary<string, InputFieldDescriptor> CreateInputFields(Type clrType)
         {
-            var propertyInfos = clrType.GetTypeInfo().DeclaredProperties.Where(x => x.GetMethod.IsPublic && x.SetMethod.IsPublic && !x.GetMethod.IsStatic);
+            var propertyInfos = clrType.GetTypeInfo().DeclaredProperties.Where(x =>
+                x.GetMethod.IsPublic && x.SetMethod.IsPublic && !x.GetMethod.IsStatic);
             // TODO replace reflection set property with expression
-            var fields = propertyInfos.Select(x => new InputFieldDescriptor(_options.FieldNamingStrategy.ResolveFieldName(x), CreateType(x.PropertyType, true), x.SetValue));
+            var fields = propertyInfos.Select(x =>
+                new InputFieldDescriptor(_options.FieldNamingStrategy.ResolveFieldName(x),
+                    CreateType(x.PropertyType, true), x.SetValue));
             return fields.ToDictionary(x => x.Name);
         }
 
@@ -202,24 +269,27 @@ namespace Cooke.GraphQL
                 };
             }
 
-            var graphFieldInfo = new GqlFieldInfo(_options.FieldNamingStrategy.ResolveFieldName(propertyInfo), type, resolver, new FieldArgumentDescriptor[0]);
+            var graphFieldInfo = new GqlFieldInfo(_options.FieldNamingStrategy.ResolveFieldName(propertyInfo), type,
+                resolver, new FieldArgumentDescriptor[0]);
             return graphFieldInfo
                 .WithMetadataField(propertyInfo)
-                .WithMetadataField((MemberInfo)propertyInfo);
+                .WithMetadataField((MemberInfo) propertyInfo);
         }
 
         private GqlFieldInfo CreateFieldInfo(MethodInfo methodInfo, FieldResolver next)
         {
             var type = CreateType(methodInfo.ReturnType);
-            var skipParameterTypes = new[] { typeof(FieldResolveContext), typeof(FieldResolver) };
+            var skipParameterTypes = new[] {typeof(FieldResolveContext), typeof(FieldResolver)};
             var resolverParameters = methodInfo.GetParameters();
-            var fieldParameters = resolverParameters.Where(x => !skipParameterTypes.Contains(x.ParameterType)).Select(CreateFieldArgument).ToArray();
+            var fieldParameters = resolverParameters.Where(x => !skipParameterTypes.Contains(x.ParameterType))
+                .Select(CreateFieldArgument).ToArray();
             var fieldName = _options.FieldNamingStrategy.ResolveFieldName(methodInfo);
 
             async Task<object> Resolver(FieldResolveContext context)
             {
                 // NOTE arguments have already been coerced outside of the resolve function
-                var paramteters = resolverParameters.Select(arg => GetResolverParameterValue(context, next, arg)).ToArray();
+                var paramteters = resolverParameters.Select(arg => GetResolverParameterValue(context, next, arg))
+                    .ToArray();
 
                 // TODO replace with a compiled expression that invokes the method
                 var result = methodInfo.Invoke(context.Instance, paramteters);
@@ -228,10 +298,11 @@ namespace Cooke.GraphQL
 
             return new GqlFieldInfo(fieldName, type, Resolver, fieldParameters)
                 .WithMetadataField(methodInfo)
-                .WithMetadataField((MemberInfo)methodInfo);
+                .WithMetadataField((MemberInfo) methodInfo);
         }
 
-        private static object GetResolverParameterValue(FieldResolveContext context, FieldResolver next, ParameterInfo arg)
+        private static object GetResolverParameterValue(FieldResolveContext context, FieldResolver next,
+            ParameterInfo arg)
         {
             if (arg.ParameterType == typeof(FieldResolveContext))
             {
@@ -249,222 +320,245 @@ namespace Cooke.GraphQL
         private FieldArgumentDescriptor CreateFieldArgument(ParameterInfo arg)
         {
             var argType = CreateType(arg.ParameterType, true);
-            
+
             // TODO use a naming strategy 
             return new FieldArgumentDescriptor(argType, arg.Name, arg.HasDefaultValue, arg.DefaultValue);
         }
 
-        private static async Task<object> UnwrapResult(object result)
-        {
-            var task = result as Task;
-            if (task != null)
-            {
-                await task;
-                // TODO investigate if using expressions directly would be more performant
-                dynamic dynamicTask = task;
-                return dynamicTask.Result;
-            }
-
-            return result;
-        }
-
-        public ObjectTypeBuilder ObjectType(string name, Action<ObjectTypeBuilder> typeBuilderAction)
-        {
-            if (_types.TryGetValue(name, out var typeBuilder))
-            {
-                return typeBuilder;
-            }
-
-            typeBuilder = new FutureGqlType(name);
-            _types[name] = typeBuilder;
-            typeBuilderAction?.Invoke(typeBuilder);
-            return typeBuilder;
-        }
-
-        public ObjectTypeBuilder<T> ObjectType<T>(string name, Action<ObjectTypeBuilder<T>> typeBuilderAction)
-        {
-            if (_types.TryGetValue(name, out var builder))
-            {
-                if (!(builder is ObjectTypeBuilder<T> typedBuilder))
-                {
-                    throw new InvalidOperationException("The given type name has already been associated with another CLR type");
-                }
-
-                return typedBuilder;
-            }
-
-            var typeBuilder = new ObjectTypeBuilder<T>(name, this);
-            _types[name] = typeBuilder;
-            typeBuilderAction?.Invoke(typeBuilder);
-            return typeBuilder;
-        }
-
-        public ObjectTypeBuilder<T> ObjectType<T>(Action<ObjectTypeBuilder<T>> typeBuilderAction)
-        {
-            var name = _options.TypeNamingStrategy.ResolveTypeName(typeof(T));
-            return ObjectType<T>(name, null);
-        }
-
-        public ObjectTypeBuilder<T> ObjectType<T>(string name)
-        {
-            return ObjectType<T>(name, null);
-        }
-
-        public ObjectTypeBuilder<T> ObjectType<T>()
-        {
-            var name = _options.TypeNamingStrategy.ResolveTypeName(typeof(T));
-            return ObjectType<T>(name, null);
-        }
-
-        public FutureGqlType Type<T>()
-        {
-            var name = _options.TypeNamingStrategy.ResolveTypeName(typeof(T));
-            if (!_types.TryGetValue(name, out var fugureType))
-            {
-            }
-
-            return null;
-        }
-
-        public FutureGqlType Type(string name)
-        {
-            if (!_types.TryGetValue(name, out var fugureType))
-            {
-            }
-
-            return null;
-        }
-
-        public void AddSchema(string schemaDefinitionLanguage)
+        public void IncludeResolverType<T1>()
         {
             throw new NotImplementedException();
         }
     }
 
-    public class BuiltFutureType : FutureGqlType
+    public interface IFieldBuilder
     {
-        private readonly GqlType _type;
+        GqlFieldInfo Build(BuildContext context);
+    }
 
-        public BuiltFutureType(GqlType type) : base(type.Name)
+    public class FieldBuilder : IFieldBuilder
+    {
+        private readonly string _name;
+        private readonly FieldResolver _resolver;
+        private IGqlTypeReference _type;
+        private readonly List<(string, IGqlTypeReference)> _arguments = new List<(string, IGqlTypeReference)>();
+
+        public FieldBuilder(string name, FieldResolver resolver, IGqlTypeReference type)
         {
+            _name = name;
+            _resolver = resolver;
             _type = type;
         }
 
-        public override GqlType Build() => _type;
-    }
-
-    public class ObjectTypeBuilder<T> : ObjectTypeBuilder
-    {
-        private readonly SchemaBuilder _schemaBuilder;
-
-        public ObjectTypeBuilder(string name, SchemaBuilder schemaBuilder) : base(name, schemaBuilder)
+        public GqlFieldInfo Build(BuildContext buildContext)
         {
-            _schemaBuilder = schemaBuilder;
+            return new GqlFieldInfo(_name, _type.Resolve(buildContext),
+                _resolver, _arguments.Select(x => new FieldArgumentDescriptor(x.Item2.Resolve(buildContext))));
         }
 
-        public FieldBuilder Field<TReturn>(Expression<Func<T, TReturn>> expression)
+        public void Type(Func<TypeReferenceBuilder, IGqlTypeReference> builderFunc)
         {
-            if (!(expression.Body is MemberExpression memberExpression))
+            _type = builderFunc(new TypeReferenceBuilder(false));
+        }
+
+        public void Arguments(params (string name, Func<TypeReferenceBuilder, IGqlTypeReference> config)[] args)
+        {
+            _arguments.AddRange(args.Select(x => (x.name, x.config(new TypeReferenceBuilder(false)))));   
+        }
+    }
+
+    public class TypeReferenceBuilder
+    {
+        private readonly Stack<WrapType> _wrapTypeStack = new Stack<WrapType>();
+
+        private enum WrapType
+        {
+            NonNull,
+            Nullable,
+            List
+        }
+
+        public TypeReferenceBuilder(bool defaultNonNull)
+        {
+        }
+
+        public TypeReferenceBuilder NonNull
+        {
+            get
             {
-                throw new ArgumentException("Only expressions starting with a member expression is valid.");
+                _wrapTypeStack.Push(WrapType.NonNull);
+                return this;
             }
-
-            var fieldName = _schemaBuilder.Options.FieldNamingStrategy.ResolveFieldName(memberExpression.Member);
-            var fieldBuilder = Field(fieldName);
-            fieldBuilder.Returns<TReturn>();
-            return fieldBuilder;
         }
 
-        public FieldBuilder Field<TReturn>(string name, Func<FieldResolveContext<T>, TReturn> resolver)
+        public TypeReferenceBuilder ListOf
         {
-            return base.Field(name, x => resolver((FieldResolveContext<T>)x));
-        }
-
-        public override GqlType Build()
-        {
-            Func<Dictionary<string, GqlFieldInfo>> fieldsFunc = null;
-            return new GqlObjectType(Name, fieldsFunc, new InterfaceType[0]);
-        }
-    }
-
-    public class ObjectTypeBuilder : FutureGqlType
-    {
-        private readonly SchemaBuilder _schemaBuilder;
-        private readonly IDictionary<string, FieldBuilder> _fields = new Dictionary<string, FieldBuilder>();
-
-        public ObjectTypeBuilder(string name, SchemaBuilder schemaBuilder) : base(name)
-        {
-            _schemaBuilder = schemaBuilder;
-        }
-
-        public FieldBuilder Field<TReturn>(string name, Func<FieldResolveContext, TReturn> resolver)
-        {
-            if (!_fields.TryGetValue(name, out var fieldBuilder))
+            get
             {
-                fieldBuilder = new FieldBuilder(name, _schemaBuilder);
-                _fields[name] = fieldBuilder;
+                _wrapTypeStack.Push(WrapType.List);
+                return this;
             }
-
-            return fieldBuilder;
         }
 
-        public FieldBuilder Field(string name)
+        public TypeReferenceBuilder Nullable
         {
-            if (!_fields.TryGetValue(name, out var fieldBuilder))
+            get
             {
-                fieldBuilder = new FieldBuilder(name, _schemaBuilder);
-                _fields[name] = fieldBuilder;
+                _wrapTypeStack.Push(WrapType.Nullable);
+                return this;
             }
-
-            return fieldBuilder;
         }
 
-        public void AddResolverType<T1>()
+        public IGqlTypeReference Type<T>()
         {
-            throw new NotImplementedException();
+            IGqlTypeReference innerTypeRef = new NamedGqlTypeReference(typeof(T));
+            return Wrap(innerTypeRef);
         }
 
-        public override GqlType Build()
+        public IGqlTypeReference String => Wrap(new NamedGqlTypeReference(StandardScalars.String));
+
+        public IGqlTypeReference Type(string gqlTypeName) => Wrap(new NamedGqlTypeReference(gqlTypeName));
+
+        private IGqlTypeReference Wrap(IGqlTypeReference innerTypeRef)
         {
-            Func<Dictionary<string, GqlFieldInfo>> fieldsFunc = null;
-            return new GqlObjectType(Name, fieldsFunc, new InterfaceType[0]);
+            return _wrapTypeStack.Reverse().Aggregate(innerTypeRef, (inner, type) =>
+            {
+                switch (type)
+                {
+                    case WrapType.NonNull:
+                        return new NonNullGqlTypeReference(innerTypeRef);
+
+                    case WrapType.Nullable:
+                        return innerTypeRef;
+
+                    case WrapType.List:
+                        return new ListGqlTypeReference(innerTypeRef);
+
+                    default:
+                        throw new ArgumentOutOfRangeException(nameof(type), type, null);
+                }
+            });
         }
     }
 
-    public class FieldBuilder
+    public class BuildContext
     {
-        private readonly string _name;
-        private readonly SchemaBuilder _schemaBuilder;
-        private FutureGqlType _returns;
+        public IReadOnlyCollection<GqlType> Types { get; set; }
+    }
 
-        public FieldBuilder(string name, SchemaBuilder schemaBuilder)
+    public interface IGqlTypeReference
+    {
+        GqlType Resolve(BuildContext context);
+    }
+
+    public class NonNullGqlTypeReference : IGqlTypeReference
+    {
+        private readonly IGqlTypeReference _typeReference;
+
+        public NonNullGqlTypeReference(IGqlTypeReference typeReference)
         {
-            _name = name;
-            _schemaBuilder = schemaBuilder;
+            _typeReference = typeReference;
         }
 
-        public FieldBuilder Returns(FutureGqlType type)
+        public GqlType Resolve(BuildContext context)
         {
-            _returns = type;
-            return this;
-        }
-
-        public FieldBuilder Returns<T>()
-        {
-            _returns = _schemaBuilder.Type<T>();
-            return this;
+            return new NonNullType(_typeReference.Resolve(context));
         }
     }
 
-    public abstract class FutureGqlType
+    public class ListGqlTypeReference : IGqlTypeReference
     {
-        public FutureGqlType(string name)
+        private readonly IGqlTypeReference _typeReference;
+
+        public ListGqlTypeReference(IGqlTypeReference typeReference)
+        {
+            _typeReference = typeReference;
+        }
+
+        public GqlType Resolve(BuildContext context)
+        {
+            return new GqlListType(_typeReference.Resolve(context));
+        }
+    }
+
+    public class NamedGqlTypeReference : IGqlTypeReference
+    {
+        public NamedGqlTypeReference(string name)
         {
             Name = name;
         }
 
+        public NamedGqlTypeReference(GqlType gqlType)
+        {
+            GqlType = gqlType;
+        }
+
+        public NamedGqlTypeReference(Type clrType)
+        {
+            ClrType = clrType;
+        }
+
+        public Type ClrType { get; set; }
+
         public string Name { get; }
 
-        public abstract GqlType Build();
+        public GqlType GqlType { get; }
+
+        public GqlType Resolve(BuildContext context)
+        {
+            if (ClrType != null)
+            {
+                var matchingTypes = context.Types
+                    .Where(x => x.ClrType.GetTypeInfo().IsAssignableFrom(ClrType.GetTypeInfo())).ToArray();
+                if (matchingTypes.Length == 0)
+                {
+                    throw new GqlTypeException(
+                        $"Could not find any matching GraphQL type for the CLR type '{ClrType}'");
+                }
+                else if (matchingTypes.Length > 1)
+                {
+                    throw new GqlTypeException(
+                        $"Found more than one matching GraphQL type for the CLR type '{ClrType}'");
+                }
+
+                return matchingTypes.First();
+            }
+            else if (Name != null)
+            {
+                var matchingTypes = context.Types.Where(x => x.Name == Name).ToArray();
+                if (matchingTypes.Length == 0)
+                {
+                    throw new GqlTypeException(
+                        $"Could not find any matching GraphQL type with the name '{Name}'");
+                }
+
+                return matchingTypes.First();
+            }
+            else
+            {
+                return GqlType;
+            }
+        }
+
+        //private GqlType ResolveClrType(BuildContext context)
+        //{
+        //    if (TypeHelper.IsList(ClrType))
+        //    {
+        //        var listEnumerableType = ClrType.GetTypeInfo().ImplementedInterfaces.Concat(new[] { ClrType })
+        //            .First(x => x.IsConstructedGenericType && x.GetGenericTypeDefinition() == typeof(IEnumerable<>));
+        //        var listGraphType = new GqlListType
+        //        {
+        //            ItemType = CreateType<T>(listEnumerableType.GenericTypeArguments.Single(), withinInputType)
+        //        };
+        //        return listGraphType;
+        //    }
+        //}
+    }
+
+    public class GqlTypeException : Exception
+    {
+        public GqlTypeException(string message)
+        {
+        }
     }
 }
